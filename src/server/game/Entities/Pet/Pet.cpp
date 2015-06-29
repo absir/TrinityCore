@@ -31,6 +31,7 @@
 #include "Util.h"
 #include "Group.h"
 #include "WorldSession.h"
+#include "AbsirGame.h"
 
 #define PET_XP_FACTOR 0.05f
 
@@ -940,6 +941,7 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
         }
         case HUNTER_PET:
         {
+			// CreatureTemplate
             SetUInt32Value(UNIT_FIELD_PETNEXTLEVELEXP, uint32(sObjectMgr->GetXPForLevel(petlevel)*PET_XP_FACTOR));
             //these formula may not be correct; however, it is designed to be close to what it should be
             //this makes dps 0.5 of pets level
@@ -947,6 +949,7 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
             //damage range is then petlevel / 2
             SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
             //damage is increased afterwards as strength and pet scaling modify attack power
+			AbsirGame::getInstance()->setHurterPetStats(this);
             break;
         }
         default:
@@ -1502,6 +1505,8 @@ void Pet::InitLevelupSpellsForLevel()
                 learnSpell(spellInfo->Id);
         }
     }
+
+	AbsirGame::getInstance()->setHurterPetSpells(this);
 }
 
 bool Pet::unlearnSpell(uint32 spell_id, bool learn_prev, bool clear_ab)
