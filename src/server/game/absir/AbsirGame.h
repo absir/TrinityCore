@@ -3,6 +3,8 @@
 
 #include "ObjectMgr.h"
 
+#define sAbsirGame AbsirGame::getInstance()
+
 class AbsirGame
 {
 public:
