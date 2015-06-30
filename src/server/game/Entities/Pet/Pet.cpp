@@ -949,7 +949,9 @@ bool Guardian::InitStatsForLevel(uint8 petlevel)
             //damage range is then petlevel / 2
             SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
             //damage is increased afterwards as strength and pet scaling modify attack power
-			AbsirGame::getInstance()->setHurterPetStats(this);
+
+			sAbsirGame->setHurterPetStats(this);
+
             break;
         }
         default:
@@ -1506,7 +1508,8 @@ void Pet::InitLevelupSpellsForLevel()
         }
     }
 
-	AbsirGame::getInstance()->setHurterPetSpells(this);
+	sAbsirGame->setHurterPetSpells(this);
+
 }
 
 bool Pet::unlearnSpell(uint32 spell_id, bool learn_prev, bool clear_ab)
