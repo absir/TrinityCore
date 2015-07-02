@@ -135,6 +135,8 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/server/shared/Utilities
   ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/absir
+  ${CMAKE_CURRENT_SOURCE_DIR}/absir/AbsirBots
+  ${CMAKE_CURRENT_SOURCE_DIR}/absir/libs
   ${CMAKE_CURRENT_SOURCE_DIR}/Accounts
   ${CMAKE_CURRENT_SOURCE_DIR}/Achievements
   ${CMAKE_CURRENT_SOURCE_DIR}/Addons

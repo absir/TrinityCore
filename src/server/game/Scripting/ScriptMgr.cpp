@@ -34,6 +34,8 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
+#include "AbsirGame.h"
+
 // namespace
 // {
     UnusedScriptContainer UnusedScripts;
@@ -749,7 +751,9 @@ bool ScriptMgr::OnGossipHello(Player* player, Creature* creature)
 
     GET_SCRIPT_RET(CreatureScript, creature->GetScriptId(), tmpscript, false);
     player->PlayerTalkClass->ClearMenus();
-    return tmpscript->OnGossipHello(player, creature);
+
+	return sAbsirGame->onGossipHello(tmpscript, player, creature);
+
 }
 
 bool ScriptMgr::OnGossipSelect(Player* player, Creature* creature, uint32 sender, uint32 action)
@@ -758,7 +762,9 @@ bool ScriptMgr::OnGossipSelect(Player* player, Creature* creature, uint32 sender
     ASSERT(creature);
 
     GET_SCRIPT_RET(CreatureScript, creature->GetScriptId(), tmpscript, false);
-    return tmpscript->OnGossipSelect(player, creature, sender, action);
+
+	return sAbsirGame->onGossipSelect(tmpscript, player, creature, sender, action);
+
 }
 
 bool ScriptMgr::OnGossipSelectCode(Player* player, Creature* creature, uint32 sender, uint32 action, const char* code)
