@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+#include "AbsirGame.h"
 
 #include "Common.h"
 #include "DatabaseEnv.h"
@@ -31,7 +32,6 @@
 #include "Util.h"
 #include "Group.h"
 #include "WorldSession.h"
-#include "AbsirGame.h"
 
 #define PET_XP_FACTOR 0.05f
 

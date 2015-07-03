@@ -1,21 +1,31 @@
 #include "AbsirGame.h"
 #include "Config.h"
-#include "Pet.h"
+#include "ReputationMgr.h"
 #include "ScriptedGossip.h"
-#include "Group.h"
 #include "AbsirBotCreature.h"
+#include "MySQLConnection.h"
 
-AbsirGame::AbsirGame()
-{
-	abWildHunt = sConfigMgr->GetBoolDefault("AB_WildHunt", true);
-	abNpcHire = sConfigMgr->GetBoolDefault("AB_NpcHung", true);
-	abNpcHire_Reputation = sConfigMgr->GetBoolDefault("AB_NpcHung.Reputation", true);
+std::string AbsirGame::getMoneyStr(uint32 money) {
+	std::ostringstream moneyStr;
+	uint32 gold = uint32(money / 10000);
+	money -= (gold * 10000);
+	uint32 silver = uint32(money / 100);
+	money -= (silver * 100);
 
-	//ScriptRegistry
+	if (gold != 0)
+		moneyStr << gold << " |TInterface\\Icons\\INV_Misc_Coin_01:8|t";
+	if (silver != 0)
+		moneyStr << silver << " |TInterface\\Icons\\INV_Misc_Coin_03:8|t";
+	if (money)
+		moneyStr << money << " |TInterface\\Icons\\INV_Misc_Coin_05:8|t";
+
+	return moneyStr.str();
 }
 
-AbsirGame::~AbsirGame()
+uint32 AbsirGame::getFaction(Creature *creature)
 {
+	FactionTemplateEntry const* vendor_faction = creature->GetFactionTemplateEntry();
+	return vendor_faction ? 0 : vendor_faction->faction;
 }
 
 static AbsirGame *_instance = NULL;
@@ -26,6 +36,39 @@ AbsirGame *AbsirGame::getInstance()
 	}
 
 	return _instance;
+}
+
+AbsirGame::AbsirGame()
+{
+	abWildHunt = sConfigMgr->GetBoolDefault("AB_WildHunt", true);
+	abNpcHire = sConfigMgr->GetBoolDefault("AB_NpcHung", true);
+	abNpcHire_Reputation = sConfigMgr->GetBoolDefault("AB_NpcHung.Reputation", true);
+}
+
+AbsirGame::~AbsirGame()
+{
+}
+
+const char *AbsirGame::getABScriptText(ABSIR_SCRIPT_ENTRY id, const char *defaultString)
+{
+	std::map<int, const char *>::iterator it = scriptTextMap.find(id);
+	const char *value = it == scriptTextMap.end ? NULL : it->second;
+	if (it == scriptTextMap.end) {
+		QueryResult result = WorldDatabase.PQuery("SELECT content_default FROM db_script_text WHERE entry = ?", id);
+		if (result) {
+			const char *value = result->Fetch()[0].GetCString();
+			if (value) {
+				scriptTextMap.insert(std::map<int, const char *>::value_type(id, value));
+				return value;
+			}
+		}
+
+		return defaultString;
+	}
+	else {
+		const char *value = it->second;
+		return value == ABSIR_EMPTY_STR ? defaultString : value;
+	}
 }
 
 void AbsirGame::setHurterPetStats(Guardian *guardian)
@@ -76,9 +119,10 @@ void AbsirGame::setHurterPetSpells(Guardian *guardian)
 
 bool AbsirGame::isCouldHireCreature(Player *player, Creature *creature) {
 	if (abNpcHire) {
-		int reputation = player->GetReputation(creature->getFaction());
-		if (reputation > 0) {
-			if (!abNpcHire_Reputation || reputation >= (creature->getLevel() * 999 / 255)) {
+		uint32 faction = getFaction(creature);
+		int reputation = faction == 0 ? 0 : player->GetReputation(faction);
+		if (reputation >= 3000) {
+			if (!abNpcHire_Reputation || reputation >= (creature->getLevel() * ReputationMgr::Reputation_Cap / 255)) {
 				Group *group = player->GetGroup();
 				if (group == NULL) {
 					group = player->GetOriginalGroup();
@@ -88,16 +132,7 @@ bool AbsirGame::isCouldHireCreature(Player *player, Creature *creature) {
 					return true;
 				}
 
-				if (group->isRaidGroup()) {
-					for (int i = 0; i < MAX_RAID_SUBGROUPS; i++) {
-						if (group->HasFreeSlotSubGroup(i)) {
-							return true;
-						}
-					}
-				}
-				else {
-					return group->GetMembersCount() < MAXGROUPSIZE;
-				}
+				return !group->IsFull();
 			}
 		}
 	}
@@ -105,30 +140,32 @@ bool AbsirGame::isCouldHireCreature(Player *player, Creature *creature) {
 	return false;
 }
 
-int getNpcHireGold(Player *player, Creature *creature)
+uint32 getNpcHireGold(Player *player, Creature *creature)
 {
-	int reputation = player->GetReputation(creature->getFaction());
-	return creature->getLevel() * (2000 - reputation) / 2000 * (creature->GetArmor() + creature->GetMaxHealth());
+	uint32 faction = AbsirGame::getFaction(creature);
+	int reputation = faction == 0 ? 0 : player->GetReputation(faction);
+	return creature->getLevel() * (creature->GetArmor() + creature->GetMaxHealth()) * (ReputationMgr::Reputation_Cap + ReputationMgr::Reputation_Cap - reputation) / (ReputationMgr::Reputation_Cap + ReputationMgr::Reputation_Cap) / 1000;
 }
 
-#define GOSSIP_SENDER_HIRE 0xABAB1001
+#define AB_GOSSIP_SENDER_HIRE 0xABAB1001
 
-#define GOSSIP_ACTION_HIRE 0xABAB2001
+#define AB_GOSSIP_ACTION_HIRE 0xABAB2001
+#define AB_GOSSIP_ACTION_HIRE_CONFIRM 0xABAB2002
 
 bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creature *creature) {
 	bool res = false;
 	if (isCouldHireCreature(player, creature)) {
 		res = true;
-		std::string hireStr;
-		sprintf(hireStr, "Hire Me? Give Me %d !!!", getNpcHireGold(player, creature));
-		player->ADD_GOSSIP_ITEM(/*IconId*/GOSSIP_ICON_CHAT, /*NameOfTheGossipMenu*/hireStr, GOSSIP_SENDER_HIRE, /*NameOfTheCase*/GOSSIP_ACTION_HIRE);
+		// std::string hireStr;
+		const char *hireFormat = getABScriptText(AB_SCRIPT_HIRE_ME, "Hire Me");
+		player->ADD_GOSSIP_ITEM(/*IconId*/GOSSIP_ICON_CHAT, /*NameOfTheGossipMenu*/getABScriptText(AB_SCRIPT_HIRE_ME, "Hire Me"), AB_GOSSIP_SENDER_HIRE, /*NameOfTheCase*/AB_GOSSIP_ACTION_HIRE);
 	}
 
-	if (tmpscript->OnGossipHello(player, creature)) {
+	if (tmpscript && tmpscript->OnGossipHello(player, creature)) {
 		res = true;
 	}
 
-	if (!player->PlayerTalkClass->GetGossipMenu().Empty()) {
+	if (tmpscript != NULL && !player->PlayerTalkClass->GetGossipMenu().Empty()) {
 		player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());
 	}
 
@@ -136,33 +173,39 @@ bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creatur
 }
 
 bool AbsirGame::onGossipSelect(CreatureScript *tmpscript, Player *player, Creature *creature, uint32 sender, uint32 action) {
-	if (sender == GOSSIP_SENDER_HIRE && action == GOSSIP_ACTION_HIRE) {
-		std::string hireStr;
-		bool res;
-		if (isCouldHireCreature(player, creature)) {
-			int gold = getNpcHireGold(player, creature);
-			if (player->GetMoney() >= gold) {
-				if (AbsirBotCreature::createBot(player, creature)) {
-					player->SetMoney(player->GetMoney() - gold);
-					hireStr = "从现在起，追随你！";
-					player->CLOSE_GOSSIP_MENU();
-					res = true;
+	if (sender == AB_GOSSIP_SENDER_HIRE) {
+		if (action == AB_GOSSIP_ACTION_HIRE) {
+			player->ADD_GOSSIP_ITEM_EXTENDED(0, 0, AB_GOSSIP_SENDER_HIRE, AB_GOSSIP_ACTION_HIRE_CONFIRM, 0, (int)getNpcHireGold(player, creature), false);
+			player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());
+		}
+		else if (action == AB_GOSSIP_ACTION_HIRE_CONFIRM) {
+			std::string hireStr;
+			bool res = false;
+			if (isCouldHireCreature(player, creature)) {
+				uint32 gold = getNpcHireGold(player, creature);
+				if (player->GetMoney() >= gold) {
+					if (AbsirBotCreature::createBot(player, creature)) {
+						player->SetMoney(player->GetMoney() - gold);
+						hireStr = getABScriptText(AB_SCRIPT_HIRE_OK, "Right now, follow you!");
+						res = true;
+					}
+				}
+				else {
+					hireStr = getABScriptText(AB_SCRIPT_NOT_ENOUGH_MONEY, "Not enough money?");
 				}
 			}
-			else {
-				hireStr = "你的钱不够？";
+
+			if (hireStr.empty()) {
+				hireStr = getABScriptText(AB_SCRIPT_NOT_READY, "You are not ready?");
 			}
-		}
 
-		if (hireStr.empty()) {
-			hireStr = "你还没有准备好？";
-		}
+			player->CLOSE_GOSSIP_MENU();
+			creature->Say(hireStr, LANG_UNIVERSAL, player);
 
-		player->Whisper(hireStr, LANG_COMMON, player, true);
-		return res;
+			return res;
+		}
 	}
-
-	return tmpscript->OnGossipSelect(player, creature, sender, action);
+	return tmpscript && tmpscript->OnGossipSelect(player, creature, sender, action);
 }
 
 
@@ -174,14 +217,13 @@ public:
 
 	virtual void OnRemoveMember(Group* group, ObjectGuid guid, RemoveMethod method, ObjectGuid kicker, const char* reason) {
 		Player *player = ObjectAccessor::FindPlayer(guid);
-		if ((player->absirGameFlag & AB_FLAG_HAS_BOT != 0)) {
+		if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
-				Player *member = ObjectAccessor::FindPlayer(witr->guid);
-				if ((member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
-					AbsirBotPlayer *botPlayer = (AbsirBotPlayer*)botPlayer;
-					if (botPlayer->getBotCreature()->getOwnerPlayer() == player) {
-						botPlayer->RemoveFromWorld();
+				Creature *member = ObjectAccessor::FindCreature(witr->guid);
+				if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
+					if (member->GetOwner() == player) {
+						member->RemoveFromWorld();
 					}
 				}
 			}
@@ -193,6 +235,7 @@ public:
 
 static int initScripte() {
 	new AB_BotGroupScript();
+	return 1;
 }
 
 static int _InitScriptes = initScripte();

@@ -1205,6 +1205,8 @@ struct SpellProcEventEntry;                                 // used only private
 class Unit : public WorldObject
 {
     public:
+		int absirGameFlag = 0;
+
         typedef std::set<Unit*> AttackerSet;
         typedef std::set<Unit*> ControlList;
 

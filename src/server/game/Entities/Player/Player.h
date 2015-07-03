@@ -1094,8 +1094,6 @@ class Player : public Unit, public GridObject<Player>
         explicit Player(WorldSession* session);
         ~Player();
 
-		int absirGameFlag = 0;
-
         void CleanupsBeforeDelete(bool finalCleanup = true) override;
 
         void AddToWorld() override;

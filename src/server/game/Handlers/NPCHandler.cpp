@@ -15,6 +15,7 @@
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
+#include "AbsirGame.h"
 
 #include "Common.h"
 #include "Language.h"
@@ -329,6 +330,7 @@ void WorldSession::HandleGossipHelloOpcode(WorldPacket& recvData)
     {
 //        _player->TalkedToCreature(unit->GetEntry(), unit->GetGUID());
         _player->PrepareGossipMenu(unit, unit->GetCreatureTemplate()->GossipMenuId, true);
+		sAbsirGame->onGossipHello(NULL, _player, unit);
         _player->SendPreparedGossip(unit);
     }
     unit->AI()->sGossipHello(_player);
