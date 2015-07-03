@@ -1085,7 +1085,7 @@ private:
     bool _isPvP;
 };
 
-class Player : public Unit, public GridObject<Player>
+class Player : public virtual Unit, public virtual GridObject<Player>
 {
     friend class WorldSession;
     friend void Item::AddToUpdateQueueOf(Player* player);

@@ -212,23 +212,31 @@ bool AbsirGame::onGossipSelect(CreatureScript *tmpscript, Player *player, Creatu
 class AB_BotGroupScript : public GroupScript {
 public:
 	AB_BotGroupScript() : GroupScript("AB_BotGroupScript") {
-
 	}
 
 	virtual void OnRemoveMember(Group* group, ObjectGuid guid, RemoveMethod method, ObjectGuid kicker, const char* reason) {
 		Player *player = ObjectAccessor::FindPlayer(guid);
+		int absirGameFlag = player->absirGameFlag;
 		if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+			std::list<Creature> removeMembers;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				Creature *member = ObjectAccessor::FindCreature(witr->guid);
 				if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
 					if (member->GetOwner() == player) {
-						member->RemoveFromWorld();
+						removeMembers.push_back(*member);
 					}
 				}
 			}
 
+			for (std::list<Creature>::iterator witr = removeMembers.begin(); witr != removeMembers.end(); ++witr) {
+				witr->RemoveFromWorld();
+			}
+
 			player->absirGameFlag &= ~AB_FLAG_HAS_BOT;
+		}
+		else if ((absirGameFlag & AB_FLAG_IS_BOT) != 0) {
+			player->RemoveFromWorld();
 		}
 	}
 };
