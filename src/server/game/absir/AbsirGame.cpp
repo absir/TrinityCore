@@ -25,7 +25,7 @@ std::string AbsirGame::getMoneyStr(uint32 money) {
 uint32 AbsirGame::getFaction(Creature *creature)
 {
 	FactionTemplateEntry const* vendor_faction = creature->GetFactionTemplateEntry();
-	return vendor_faction ? 0 : vendor_faction->faction;
+	return vendor_faction ? vendor_faction->faction : 0;
 }
 
 static AbsirGame *_instance = NULL;
@@ -49,26 +49,14 @@ AbsirGame::~AbsirGame()
 {
 }
 
-const char *AbsirGame::getABScriptText(ABSIR_SCRIPT_ENTRY id, const char *defaultString)
+std::string AbsirGame::getABScriptText(Player *player, ABSIR_SCRIPT_ENTRY id, char *defaultString)
 {
-	std::map<int, const char *>::iterator it = scriptTextMap.find(id);
-	const char *value = it == scriptTextMap.end ? NULL : it->second;
-	if (it == scriptTextMap.end) {
-		QueryResult result = WorldDatabase.PQuery("SELECT content_default FROM db_script_text WHERE entry = ?", id);
-		if (result) {
-			const char *value = result->Fetch()[0].GetCString();
-			if (value) {
-				scriptTextMap.insert(std::map<int, const char *>::value_type(id, value));
-				return value;
-			}
-		}
+	std::string value = player == NULL ? sObjectMgr->GetTrinityStringForDBCLocale(id) : sObjectMgr->GetTrinityString(id, player->GetSession()->GetSessionDbcLocale());
+	if (defaultString == NULL) {
+		return value;
+	}
 
-		return defaultString;
-	}
-	else {
-		const char *value = it->second;
-		return value == ABSIR_EMPTY_STR ? defaultString : value;
-	}
+	return value.empty() || value == "<error>" ? defaultString : value;
 }
 
 void AbsirGame::setHurterPetStats(Guardian *guardian)
@@ -118,10 +106,10 @@ void AbsirGame::setHurterPetSpells(Guardian *guardian)
 }
 
 bool AbsirGame::isCouldHireCreature(Player *player, Creature *creature) {
-	if (abNpcHire) {
+	if (abNpcHire && (creature->absirGameFlag & AB_FLAG_IS_BOT) == 0) {
 		uint32 faction = getFaction(creature);
 		int reputation = faction == 0 ? 0 : player->GetReputation(faction);
-		if (reputation >= 3000) {
+		if (reputation >= 1000) {
 			if (!abNpcHire_Reputation || reputation >= (creature->getLevel() * ReputationMgr::Reputation_Cap / 255)) {
 				Group *group = player->GetGroup();
 				if (group == NULL) {
@@ -150,15 +138,13 @@ uint32 getNpcHireGold(Player *player, Creature *creature)
 #define AB_GOSSIP_SENDER_HIRE 0xABAB1001
 
 #define AB_GOSSIP_ACTION_HIRE 0xABAB2001
-#define AB_GOSSIP_ACTION_HIRE_CONFIRM 0xABAB2002
 
 bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creature *creature) {
 	bool res = false;
 	if (isCouldHireCreature(player, creature)) {
 		res = true;
-		// std::string hireStr;
-		const char *hireFormat = getABScriptText(AB_SCRIPT_HIRE_ME, "Hire Me");
-		player->ADD_GOSSIP_ITEM(/*IconId*/GOSSIP_ICON_CHAT, /*NameOfTheGossipMenu*/getABScriptText(AB_SCRIPT_HIRE_ME, "Hire Me"), AB_GOSSIP_SENDER_HIRE, /*NameOfTheCase*/AB_GOSSIP_ACTION_HIRE);
+		std::string hireStr = getABScriptText(player, AB_SCRIPT_HIRE_ME, "Hire Me");
+		player->ADD_GOSSIP_ITEM_EXTENDED(GOSSIP_ICON_CHAT, getABScriptText(player, AB_SCRIPT_HIRE_ME, "Hire Me"), AB_GOSSIP_SENDER_HIRE, AB_GOSSIP_ACTION_HIRE, getABScriptText(player, AB_SCRIPT_COST, "Cost"), getNpcHireGold(player, creature), false);
 	}
 
 	if (tmpscript && tmpscript->OnGossipHello(player, creature)) {
@@ -173,41 +159,35 @@ bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creatur
 }
 
 bool AbsirGame::onGossipSelect(CreatureScript *tmpscript, Player *player, Creature *creature, uint32 sender, uint32 action) {
-	if (sender == AB_GOSSIP_SENDER_HIRE) {
-		if (action == AB_GOSSIP_ACTION_HIRE) {
-			player->ADD_GOSSIP_ITEM_EXTENDED(0, 0, AB_GOSSIP_SENDER_HIRE, AB_GOSSIP_ACTION_HIRE_CONFIRM, 0, (int)getNpcHireGold(player, creature), false);
-			player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());
-		}
-		else if (action == AB_GOSSIP_ACTION_HIRE_CONFIRM) {
-			std::string hireStr;
-			bool res = false;
-			if (isCouldHireCreature(player, creature)) {
-				uint32 gold = getNpcHireGold(player, creature);
-				if (player->GetMoney() >= gold) {
-					if (AbsirBotCreature::createBot(player, creature)) {
-						player->SetMoney(player->GetMoney() - gold);
-						hireStr = getABScriptText(AB_SCRIPT_HIRE_OK, "Right now, follow you!");
-						res = true;
-					}
-				}
-				else {
-					hireStr = getABScriptText(AB_SCRIPT_NOT_ENOUGH_MONEY, "Not enough money?");
+	if (sender == AB_GOSSIP_SENDER_HIRE && action == AB_GOSSIP_ACTION_HIRE) {
+		std::string hireStr;
+		bool res = false;
+		if (isCouldHireCreature(player, creature)) {
+			uint32 gold = getNpcHireGold(player, creature);
+			if (player->GetMoney() >= gold) {
+				if (AbsirBotCreature::createBot(player, creature)) {
+					player->SetMoney(player->GetMoney() - gold);
+					hireStr = getABScriptText(player, AB_SCRIPT_HIRE_OK, "Right now, follow you!");
+					res = true;
 				}
 			}
-
-			if (hireStr.empty()) {
-				hireStr = getABScriptText(AB_SCRIPT_NOT_READY, "You are not ready?");
+			else {
+				hireStr = getABScriptText(player, AB_SCRIPT_NOT_ENOUGH_MONEY, "Not enough money?");
 			}
-
-			player->CLOSE_GOSSIP_MENU();
-			creature->Say(hireStr, LANG_UNIVERSAL, player);
-
-			return res;
 		}
+
+		if (hireStr.empty()) {
+			hireStr = getABScriptText(player, AB_SCRIPT_NOT_READY, "You are not ready?");
+		}
+
+		player->CLOSE_GOSSIP_MENU();
+		creature->Say(hireStr, LANG_UNIVERSAL, player);
+
+		return res;
 	}
+
 	return tmpscript && tmpscript->OnGossipSelect(player, creature, sender, action);
 }
-
 
 class AB_BotGroupScript : public GroupScript {
 public:
@@ -219,18 +199,18 @@ public:
 		int absirGameFlag = player->absirGameFlag;
 		if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
-			std::list<Creature> removeMembers;
+			std::list<Creature *> removeMembers;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
-				Creature *member = ObjectAccessor::FindCreature(witr->guid);
+				Creature *member = ObjectAccessor::GetObjectInWorld(witr->guid, (Creature*)NULL);
 				if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
 					if (member->GetOwner() == player) {
-						removeMembers.push_back(*member);
+						removeMembers.push_back(member);
 					}
 				}
 			}
 
-			for (std::list<Creature>::iterator witr = removeMembers.begin(); witr != removeMembers.end(); ++witr) {
-				witr->RemoveFromWorld();
+			for (std::list<Creature *>::iterator witr = removeMembers.begin(); witr != removeMembers.end(); ++witr) {
+				(*witr)->RemoveFromWorld();
 			}
 
 			player->absirGameFlag &= ~AB_FLAG_HAS_BOT;

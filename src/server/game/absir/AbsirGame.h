@@ -14,10 +14,11 @@
 static const char *ABSIR_EMPTY_STR = "";
 
 enum ABSIR_SCRIPT_ENTRY {
-	AB_SCRIPT_NOT_ENOUGH_MONEY = 012121212001,
-	AB_SCRIPT_NOT_READY = 012121212002,
-	AB_SCRIPT_HIRE_ME = 012121212003,
-	AB_SCRIPT_HIRE_OK = 012121212004,
+	AB_SCRIPT_NOT_ENOUGH_MONEY	= 81212001,
+	AB_SCRIPT_NOT_READY			= 81212002,
+	AB_SCRIPT_HIRE_ME			= 81212003,
+	AB_SCRIPT_HIRE_OK			= 81212004,
+	AB_SCRIPT_COST			= 81212005,
 };
 
 /*
@@ -39,7 +40,7 @@ public:
 	~AbsirGame();
 	static AbsirGame *getInstance();
 
-	const char *getABScriptText(ABSIR_SCRIPT_ENTRY id, const char *defaultString);
+	std::string getABScriptText(Player *player, ABSIR_SCRIPT_ENTRY id, char *defaultString);
 
 	/*
 	Pet.cpp
@@ -95,7 +96,6 @@ public:
 	bool onGossipSelect(CreatureScript *tmpscript, Player *player, Creature *creature, uint32 sender, uint32 action);
 
 private:
-	std::map<int, const char *> scriptTextMap;
 	bool abWildHunt;
 	bool abNpcHire;
 	bool abNpcHire_Reputation;

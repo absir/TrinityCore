@@ -415,7 +415,7 @@ struct TrainerSpellData
 typedef std::vector<uint8> CreatureTextRepeatIds;
 typedef std::unordered_map<uint8, CreatureTextRepeatIds> CreatureTextRepeatGroup;
 
-class Creature : public virtual Unit, public virtual GridObject<Creature>, public MapObject
+class Creature : public Unit, public GridObject<Creature>, public MapObject
 {
     public:
 

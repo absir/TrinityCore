@@ -4,6 +4,7 @@
 #include "AbsirGame.h"
 
 class AbsirBotCreature;
+class AbsirBotSession;
 
 class AbsirBotAI  {
 public:
@@ -21,7 +22,7 @@ class Creature : public virtual Unit, public virtual GridObject<Creature>, publi
 Player.h
 class Player : public virtual Unit, public virtual GridObject<Player>
 */
-class AbsirBotCreature : public virtual Creature, public virtual Player
+class AbsirBotCreature : public Creature, public Player
 {
 public:
 	static AbsirBotCreature *createBot(Player *player, Unit *unit) {
@@ -36,6 +37,7 @@ public:
 	Player *getBotPlayer();
 
 	void followOwnerStats();
+	void syncCreature();
 
 	void AddToWorld() override;
 	void RemoveFromWorld() override;
@@ -45,7 +47,14 @@ public:
 	};
 	void Update(uint32 time) {
 		Creature::Update(time);
+		syncCreature();
 	};
+	void SetMap(Map *map) {
+		Creature::SetMap(map);
+		Creature::SetMap(map);
+	};
+
+	// ovrride virtual method
 	bool CanAlwaysSee(WorldObject const* obj) const {
 		return Creature::CanAlwaysSee(obj);
 	};
@@ -103,6 +112,9 @@ public:
 	void SetTarget(ObjectGuid guid) {
 		Creature::SetTarget(guid);
 	};
+
+protected:
+	AbsirBotCreature(AbsirBotSession *botSession);
 
 private:
 	Player *m_owerPlayer = NULL;

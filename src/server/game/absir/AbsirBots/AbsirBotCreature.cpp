@@ -4,7 +4,7 @@
 
 static AbsirBotAI *createBotAI(AbsirBotCreature *botCreature) {
 	// 
-	uint8 cls = botCreature->getClass();
+	uint8 cls = ((Creature *)botCreature)->getClass();
 	AbsirBotAI *botAI = new AbsirBotAI();
 
 	botAI->initCreature(botCreature);
@@ -23,10 +23,10 @@ static WorldSocket *BOT_SOCKET = new AB_BotSocket();
 static std::shared_ptr<WorldSocket> BOT_SOCKET_PTR(BOT_SOCKET);
 */
 
-class AB_BotSession : public WorldSession {
+class AbsirBotSession : public WorldSession {
 
 public:
-	AB_BotSession() : WorldSession(0, NULL, SEC_PLAYER, 0, 0, LOCALE_enUS, 0, true) {
+	AbsirBotSession() : WorldSession(0, NULL, SEC_PLAYER, 0, 0, LOCALE_enUS, 0, true) {
 	}
 
 	AbsirBotCreature *botCreature;
@@ -36,9 +36,10 @@ private:
 
 static CharacterCreateInfo *BOT_CHARACTER = new CharacterCreateInfo();
 
-AbsirBotCreature::AbsirBotCreature() : Unit(false), Creature(), Player(new AB_BotSession()) {
-	AB_BotSession *botSession = (AB_BotSession*)GetSession();
-	botSession->SetPlayer(this);
+AbsirBotCreature::AbsirBotCreature() : AbsirBotCreature(new AbsirBotSession()){
+}
+
+AbsirBotCreature::AbsirBotCreature(AbsirBotSession *botSession) : Creature(true), Player(botSession) {
 	botSession->botCreature = this;
 }
 
@@ -89,15 +90,31 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 	return NULL;
 }
 
+static int _UNIT_GUID_SIZE = sizeof(Unit) + sizeof(GridObject<Creature>);
+
 Player *AbsirBotCreature::getBotPlayer()
 {
 	if (m_botPlayer == NULL) {
+		// Set Bot Player
 		m_botPlayer = this;
-		m_botPlayer->Create(m_owerPlayer->GetGUID(), BOT_CHARACTER);
-		m_botPlayer->AddToWorld();
-		SetOwnerGUID(m_owerPlayer->GetGUID());
-		m_owerPlayer->absirGameFlag |= AB_FLAG_HAS_BOT;
+		
+		// Create Player
+		Player::Create(m_owerPlayer->GetGUID(), BOT_CHARACTER);
+		Player::SetMap(Creature::GetMap());
+		// Player::SetOwnerGUID(m_owerPlayer->GetGUID());
+		Player::SetName(Creature::GetName());
+		Player::GetSession()->SetPlayer(this);
+
+		// Sync Creature Add To World
+		syncCreature();
+		AddToWorld();
+
+		// Create Bot AI
 		m_botAi = createBotAI(this);
+
+		// Set Creature Owner Flag
+		Creature::SetOwnerGUID(m_owerPlayer->GetGUID());
+		m_owerPlayer->absirGameFlag |= AB_FLAG_HAS_BOT;
 	}
 
 	return m_botPlayer;
@@ -105,12 +122,18 @@ Player *AbsirBotCreature::getBotPlayer()
 
 void AbsirBotCreature::followOwnerStats()
 {
-	SetLevel(m_owerPlayer->getLevel());
+	Creature::SetLevel(m_owerPlayer->getLevel());
+	Player::SetLevel(m_owerPlayer->getLevel());
+}
+
+void AbsirBotCreature::syncCreature()
+{
+	Player::Relocate(Creature::GetPosition());
 }
 
 void AbsirBotCreature::AddToWorld()
 {
-	bool inWold = IsInWorld();
+	bool inWold = Player::IsInWorld();
 	if (!inWold) {
 		sObjectAccessor->AddObject((Player *)this);
 	}
@@ -121,11 +144,11 @@ void AbsirBotCreature::AddToWorld()
 
 void AbsirBotCreature::RemoveFromWorld()
 {
-	bool inWold = IsInWorld();
+	bool inWold = Player::IsInWorld();
 	if (inWold) {
 		Group *group = GetGroup();
 		if (group) {
-			group->RemoveMember(GetGUID(), GROUP_REMOVEMETHOD_LEAVE);
+			group->RemoveMember(Player::GetGUID(), GROUP_REMOVEMETHOD_LEAVE);
 		}
 
 		sObjectAccessor->RemoveObject((Player *)this);
