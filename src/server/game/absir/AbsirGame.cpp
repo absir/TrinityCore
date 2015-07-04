@@ -120,7 +120,7 @@ bool AbsirGame::isCouldHireCreature(Player *player, Creature *creature) {
 					return true;
 				}
 
-				return !group->IsFull();
+				return !group->isRaidGroup() || !group->IsFull();
 			}
 		}
 	}
@@ -196,21 +196,29 @@ public:
 
 	virtual void OnRemoveMember(Group* group, ObjectGuid guid, RemoveMethod method, ObjectGuid kicker, const char* reason) {
 		Player *player = ObjectAccessor::FindPlayer(guid);
+		if (player == NULL) {
+			return;
+		}
+
 		int absirGameFlag = player->absirGameFlag;
 		if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
 			std::list<Creature *> removeMembers;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
-				Creature *member = ObjectAccessor::GetObjectInWorld(witr->guid, (Creature*)NULL);
-				if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
-					if (member->GetOwner() == player) {
-						removeMembers.push_back(member);
+				ObjectGuid uid = witr->guid;
+				if (uid.GetHigh() == HIGHGUID_UNIT) {
+					Creature *member = ObjectAccessor::GetObjectInWorld(witr->guid, (Creature*)NULL);
+					if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
+						if (member->GetOwner() == player) {
+							removeMembers.push_back(member);
+						}
 					}
 				}
 			}
 
 			for (std::list<Creature *>::iterator witr = removeMembers.begin(); witr != removeMembers.end(); ++witr) {
-				(*witr)->RemoveFromWorld();
+				Creature *creature = *witr;
+				creature->GetMap()->RemoveFromMap(creature, true);
 			}
 
 			player->absirGameFlag &= ~AB_FLAG_HAS_BOT;

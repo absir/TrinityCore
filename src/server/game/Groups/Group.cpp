@@ -363,6 +363,11 @@ bool Group::AddMember(Player* player)
 
     SubGroupCounterIncrease(subGroup);
 
+	//npcbot - check if trying to add bot
+	if (player->GetGUID().GetHigh() == HIGHGUID_PLAYER)
+	{
+	//end npcbot
+
     player->SetGroupInvite(NULL);
     if (player->GetGroup())
     {
@@ -378,6 +383,10 @@ bool Group::AddMember(Player* player)
     InstanceGroupBind* bind = GetBoundInstance(player);
     if (bind && bind->save->GetInstanceId() == player->GetInstanceId())
         player->m_InstanceValid = true;
+
+	//npcbot
+	}
+	//end npcbot
 
     if (!isRaidGroup())                                      // reset targetIcons for non-raid-groups
     {
@@ -401,6 +410,11 @@ bool Group::AddMember(Player* player)
 
     SendUpdate();
     sScriptMgr->OnGroupAddMember(this, player->GetGUID());
+
+	//npcbot - check 2
+	if (player->GetGUID().GetHigh() == HIGHGUID_PLAYER)
+	{
+	//end npcbot
 
     if (!IsLeader(player->GetGUID()) && !isBGGroup() && !isBFGroup())
     {
@@ -477,6 +491,10 @@ bool Group::AddMember(Player* player)
 
     if (m_maxEnchantingLevel < player->GetSkillValue(SKILL_ENCHANTING))
         m_maxEnchantingLevel = player->GetSkillValue(SKILL_ENCHANTING);
+
+	//npcbot
+	}
+	//end npcbot
 
     return true;
 }
