@@ -61,7 +61,8 @@ public:
 		return createBotData(player, unit->GetMap(), PHASEMASK_NORMAL, unit->GetEntry(), player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), unit->GetOrientation());
 	};
 	static AbsirBotCreature *createBotData(Player *player, Map* map, uint32 phaseMask, uint32 entry, float x, float y, float z, float ang, CreatureData const* data = nullptr, uint32 vehId = 0);
-	
+	static void cleanUpFromWorld(Creature *creature, Group *group);
+
 	AbsirBotCreature();
 	~AbsirBotCreature();
 	Player *getOwnerPlayer() { return m_owerPlayer; };

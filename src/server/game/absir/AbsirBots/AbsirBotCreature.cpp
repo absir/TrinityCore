@@ -33,6 +33,19 @@ public:
 	};
 };
 
+void AbsirBotCreature::cleanUpFromWorld(Creature *creature, Group *group)
+{
+	if ((creature->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
+		creature->absirGameFlag &= ~AB_FLAG_IS_BOT;
+	}
+
+	if (group) {
+		group->RemoveMember(creature->GetGUID());
+	}
+
+	creature->GetMap()->RemoveFromMap(creature, true);
+}
+
 AbsirBotCreature::AbsirBotCreature() : Creature(true){
 }
 
