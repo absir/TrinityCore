@@ -6,6 +6,12 @@
 class AbsirBotCreature;
 class AbsirBotSession;
 
+typedef struct _AbsirBotData {
+
+
+
+} AbsirBotData;
+
 class AbsirBotAI  {
 public:
 	void initCreature(AbsirBotCreature *botCreature) {
@@ -58,21 +64,26 @@ class AbsirBotCreature : public Creature
 {
 public:
 	static AbsirBotCreature *createBot(Player *player, Unit *unit) {
-		return createBotData(player, unit->GetMap(), PHASEMASK_NORMAL, unit->GetEntry(), player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), unit->GetOrientation());
+		return createBotData(player, unit->GetMap(), PHASEMASK_NORMAL, unit->GetEntry(), unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ(), unit->GetOrientation());
 	};
 	static AbsirBotCreature *createBotData(Player *player, Map* map, uint32 phaseMask, uint32 entry, float x, float y, float z, float ang, CreatureData const* data = nullptr, uint32 vehId = 0);
 	static void cleanUpFromWorld(Creature *creature, Group *group);
+
+	static void saveBotCreatures(Player *player);
+	static void loadBotCreatures(Player *player);
 
 	AbsirBotCreature();
 	~AbsirBotCreature();
 	Player *getOwnerPlayer() { return m_owerPlayer; };
 	AbsirBotAI *getBotAI() { return m_botAi; };
 	Player *getBotPlayer();
+	AbsirBotData getBotData() {return m_botData};
 
 private:
 	Player *m_owerPlayer = NULL;
 	AbsirBotAI *m_botAi = NULL;
 	Player *m_botPlayer = NULL;
+	AbsirBotData m_botData;
 };
 
 #endif

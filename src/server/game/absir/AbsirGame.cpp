@@ -229,7 +229,7 @@ public:
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				ObjectGuid uid = witr->guid;
 				if (uid.GetHigh() == HIGHGUID_UNIT) {
-					Creature *member = ObjectAccessor::GetObjectInWorld(witr->guid, (Creature*)NULL);
+					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
 					if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
 						if (member->GetOwner() == player) {
 							removeMembers.push_back(member);
