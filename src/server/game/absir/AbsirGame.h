@@ -9,6 +9,15 @@
 #include "ScriptMgr.h"
 #include "Chat.h"
 
+//以下是 Base64.h 的内容:
+size_t AB_Base64_Decode(char *pDest, const char *pSrc, size_t srclen);
+size_t AB_Base64_Encode(char *pDest, const char *pSrc, size_t srclen);
+
+//以下是 Base64.cpp 的内容:
+
+BYTE AB_Decode_GetByte(char c);
+char AB_Encode_GetChar(BYTE num);
+
 #define sAbsirGame AbsirGame::getInstance()
 
 static const char *ABSIR_EMPTY_STR = "";

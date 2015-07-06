@@ -49,6 +49,8 @@ void AbsirBotCreature::cleanUpFromWorld(Creature *creature, Group *group)
 	creature->GetMap()->RemoveFromMap(creature, true);
 }
 
+static size_t AB_BOT_DATA_SIZE = sizeof(AbsirBotData);
+
 void AbsirBotCreature::saveBotCreatures(Player *player)
 {
 	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
@@ -65,7 +67,17 @@ void AbsirBotCreature::saveBotCreatures(Player *player)
 					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
 					if (member && member->GetOwnerGUID() == guid) {
 						AbsirBotData data = ((AbsirBotCreature *)member)->getBotData();
-						CharacterDatabase.PExecute("INSERT INTO ab_character_bot SET(guid, entry, sequ, phaseMask, data) VALUES (?, ?, ?, ?, ?)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), data);
+						char *encodeChr = new char[AB_BOT_DATA_SIZE * 2 + 4];
+						try{
+							size_t len = AB_Base64_Encode(encodeChr, (char *)&data, AB_BOT_DATA_SIZE);
+							encodeChr[len] = 0;
+							std::string dataStr = encodeChr;
+							CharacterDatabase.PExecute("INSERT INTO ab_character_bot SET(guid, entry, sequ, phaseMask, data) VALUES (?, ?, ?, ?, ?)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), dataStr);
+							delete encodeChr;
+						}
+						catch(double e) {
+							delete encodeChr;
+						}
 					}
 				}
 			}
@@ -94,11 +106,26 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 
 				uint32 phaseMask = fields->GetUInt32();
 				std::string dataStr = fields->GetString();
-				AbsirBotData botData;
 				AbsirBotCreature *creature = AbsirBotCreature::createBotData(player, player->GetMap(), phaseMask, entry, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation());
-				// Base64
 				if (creature) {
-					creature->m_botData = botData;
+					// Decode Base64
+					const char *chr = dataStr.c_str();
+					size_t len = strlen(chr);
+					char *decodeChr = new char[len];
+					try{
+						len = AB_Base64_Decode(decodeChr, chr, len);
+						AbsirBotData botData;
+						if (len > AB_BOT_DATA_SIZE) {
+							len = AB_BOT_DATA_SIZE;
+						}
+
+						_memccpy(&botData, decodeChr, 0, len);
+						creature->m_botData = botData;
+						delete decodeChr;
+					}
+					catch (double e) {
+						delete decodeChr;
+					}
 				}
 
 			} while (result->NextRow());

@@ -77,7 +77,7 @@ public:
 	Player *getOwnerPlayer() { return m_owerPlayer; };
 	AbsirBotAI *getBotAI() { return m_botAi; };
 	Player *getBotPlayer();
-	AbsirBotData getBotData() {return m_botData};
+	AbsirBotData getBotData() { return m_botData; };
 
 private:
 	Player *m_owerPlayer = NULL;
