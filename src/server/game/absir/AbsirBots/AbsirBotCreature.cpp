@@ -72,7 +72,7 @@ void AbsirBotCreature::saveBotCreatures(Player *player)
 							size_t len = AB_Base64_Encode(encodeChr, (char *)&data, AB_BOT_DATA_SIZE);
 							encodeChr[len] = 0;
 							std::string dataStr = encodeChr;
-							CharacterDatabase.PExecute("INSERT INTO ab_character_bot SET(guid, entry, sequ, phaseMask, data) VALUES (?, ?, ?, ?, ?)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), dataStr);
+							CharacterDatabase.PExecute("INSERT INTO ab_character_bot SET(guid, entry, sequ, phaseMask, x, y, z, ang, data) VALUES (?, ?, ?, ?, ?)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), member->GetOrientation(), dataStr);
 							delete encodeChr;
 						}
 						catch(double e) {
@@ -90,7 +90,7 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) == 0) {
 		uint32 guid = player->GetGUID();
 		bool saveError = false;
-		QueryResult result = CharacterDatabase.PQuery("SELECT entry, sequ, phaseMask, data FROM ab_character_bot WHERE guid = ? ORDER BY sequ", guid);
+		QueryResult result = CharacterDatabase.PQuery("SELECT entry, sequ, phaseMask, x, y, z, ang, data FROM ab_character_bot WHERE guid = ? ORDER BY sequ", guid);
 		if (result)
 		{
 			do{
@@ -105,10 +105,14 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 				}
 
 				uint32 phaseMask = fields->GetUInt32();
-				std::string dataStr = fields->GetString();
-				AbsirBotCreature *creature = AbsirBotCreature::createBotData(player, player->GetMap(), phaseMask, entry, player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation());
+				float x = fields->GetFloat();
+				float y = fields->GetFloat();
+				float z = fields->GetFloat();
+				float ang = fields->GetFloat();
+				AbsirBotCreature *creature = AbsirBotCreature::createBotData(player, player->GetMap(), phaseMask, entry, x, y, z, ang);
 				if (creature) {
 					// Decode Base64
+					std::string dataStr = fields->GetString();
 					const char *chr = dataStr.c_str();
 					size_t len = strlen(chr);
 					char *decodeChr = new char[len];
