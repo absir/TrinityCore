@@ -59,6 +59,27 @@ m_maxEnchantingLevel = player->GetSkillValue(SKILL_ENCHANTING);
 //end npcbot
 
 return true;
+
+@5
+Player.cpp
+m_achievementMgr->CheckAllAchievementCriteria();
+
+_LoadEquipmentSets(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_EQUIPMENT_SETS));
+
+AbsirBotCreature::saveBotCreatures(this);
+
+return true;
+
+@6
+Player.cpp
+else
+{
+AbsirBotCreature::saveBotCreatures(this);
+
+// Update query
+stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHARACTER);
+stmt->setString(index++, GetName());
+
 */
 class AbsirBotCreature : public Creature
 {

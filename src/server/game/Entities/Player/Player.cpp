@@ -80,6 +80,8 @@
 #include "WorldSession.h"
 #include "GameObjectAI.h"
 
+#include "AbsirBotCreature.h"
+
 #define ZONE_UPDATE_INTERVAL (1*IN_MILLISECONDS)
 
 #define PLAYER_SKILL_INDEX(x)       (PLAYER_SKILL_INFO_1_1 + ((x)*3))
@@ -17724,6 +17726,8 @@ bool Player::LoadFromDB(ObjectGuid guid, SQLQueryHolder *holder)
 
     _LoadEquipmentSets(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_EQUIPMENT_SETS));
 
+	AbsirBotCreature::saveBotCreatures(this);
+
     return true;
 }
 
@@ -19204,6 +19208,8 @@ void Player::SaveToDB(bool create /*=false*/)
     }
     else
     {
+		AbsirBotCreature::saveBotCreatures(this);
+
         // Update query
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHARACTER);
         stmt->setString(index++, GetName());
