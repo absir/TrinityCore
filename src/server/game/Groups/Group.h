@@ -323,6 +323,8 @@ class Group
         // FG: evil hacks
         void BroadcastGroupUpdate(void);
 
+		const ObjectGuid *GetTargetIcons() { return m_targetIcons; }
+
     protected:
         bool _setMembersGroup(ObjectGuid guid, uint8 group);
         void _homebindIfInstance(Player* player);

@@ -37,6 +37,7 @@ int absirGameFlag = 0;
 enum {
 	AB_FLAG_HAS_BOT	= 0x00000001,
 	AB_FLAG_IS_BOT	= 0x00000002,
+	AB_FLAG_IS_BOT_PET = 0x00000004,
 };
 
 class AbsirGame

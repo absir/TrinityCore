@@ -80,6 +80,12 @@ AbsirBotCreature::saveBotCreatures(this);
 stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHARACTER);
 stmt->setString(index++, GetName());
 
+@7
+group.h
+// FG: evil hacks
+void BroadcastGroupUpdate(void);
+
+const ObjectGuid *GetTargetIcons() { return m_targetIcons; }
 */
 class AbsirBotCreature : public Creature
 {

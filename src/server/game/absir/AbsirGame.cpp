@@ -261,7 +261,13 @@ uint32 getNpcHireGold(Player *player, Creature *creature)
 {
 	uint32 faction = AbsirGame::getFaction(creature);
 	int reputation = faction == 0 ? 0 : player->GetReputation(faction);
-	return creature->getLevel() * (creature->GetArmor() + creature->GetMaxHealth()) * (ReputationMgr::Reputation_Cap + ReputationMgr::Reputation_Cap - reputation) / (ReputationMgr::Reputation_Cap + ReputationMgr::Reputation_Cap) / 1000;
+	float x = creature->getLevel() * (creature->GetArmor() + creature->GetMaxHealth());
+	x = (x * 16000 - 95988000) * (ReputationMgr::Reputation_Cap + ReputationMgr::Reputation_Cap - reputation) / (ReputationMgr::Reputation_Cap + ReputationMgr::Reputation_Cap) / 7;
+	if (x <= 0) {
+		x = 1;
+	}
+
+	return x;
 }
 
 #define AB_GOSSIP_SENDER_HIRE 0xABAB1001
