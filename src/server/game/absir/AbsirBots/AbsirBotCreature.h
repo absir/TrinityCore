@@ -103,13 +103,17 @@ public:
 	AbsirBotCreature();
 	~AbsirBotCreature();
 	Player *getOwnerPlayer() { return m_owerPlayer; };
-	bot_ai *getBotAI() { return m_botAi; };
+	AbsirBotAI *getBotAI() { return m_botAi; };
 	Player *getBotPlayer();
 	AbsirBotData getBotData() { return m_botData; };
 
+	Creature *petCreature = NULL;
+	bot_ai *botAI = NULL;
+	std::unordered_map<uint64 /*guid*/, Creature* /*bot*/> *botMap = NULL;
+
 private:
 	Player *m_owerPlayer = NULL;
-	bot_ai *m_botAi = NULL;
+	AbsirBotAI *m_botAi = NULL;
 	Player *m_botPlayer = NULL;
 	AbsirBotData m_botData;
 };

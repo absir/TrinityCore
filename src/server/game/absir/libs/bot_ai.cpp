@@ -11,6 +11,210 @@
 #include "SpellAuraEffects.h"
 #include "AbsirBotCreature.h"
 
+bot_pet_ai *ab_getBotPetAI(Creature *creature) {
+	bot_ai *ai = AB_GetBotAI(creature);
+	return ai ? (bot_pet_ai *)ai->GetPetAI() : NULL; 
+}
+
+bot_minion_ai *ab_getBotMinionAI(Creature *creature) {
+	bot_ai *ai = AB_GetBotAI(creature);
+	return ai ? (bot_minion_ai *)ai->GetMinionAI() : NULL;
+}
+
+bool ab_isFreeBot(const Creature *creature) {
+	bot_ai *ai = AB_GetBotAI(creature);
+	return ai && ai->IAmFree();
+}
+
+uint8 ab_getBotClass(const Creature *creature) { 
+	bot_ai *ai = AB_GetBotAI(creature);
+	return ai ? ai->GetBotClass() : creature->getClass();
+}
+
+void ab_setBotCommandStateFlag(const Creature *creature, CommandStates st, bool force) {
+	bot_ai *ai = AB_GetBotAI(creature);
+	if (ai) ai->SetBotCommandState(st, force);
+}
+
+Creature *ab_getCreatureOwner(Unit *unit) {
+	return (unit->absirGameFlag & AB_FLAG_IS_BOT) != 0 ? (Creature *)unit : sObjectAccessor->GetObjectInWorld(unit->GetOwnerGUID(), (Creature *)NULL);
+}
+
+void ab_botStopMovement(Unit *unit) {
+	if (unit->IsInWorld())
+	{
+		unit->GetMotionMaster()->Clear();
+		unit->GetMotionMaster()->MoveIdle();
+	}
+	unit->StopMoving();
+	//creature->DisableSpline();
+}
+
+void ab_teleportBot(Creature* bot, Map* newMap, Position position)
+{
+	ASSERT(AB_GetBotAI(bot));
+	AB_GetBotAI(bot)->AbortTeleport();
+
+	//bot->SetBotsPetDied();
+	Creature *m_bots_pet = ((AbsirBotCreature *)bot)->petCreature;
+	m_bots_pet->SetCharmerGUID(ObjectGuid::Empty);
+	m_bots_pet->SetOwnerGUID(ObjectGuid::Empty);
+	//m_bots_pet->GetBotPetAI()->SetCreatureOwner(NULL);
+	//SetMinion((Minion*)m_bots_pet, false);
+	//m_bots_pet->SetIAmABot(false);
+	m_bots_pet->CleanupsBeforeDelete();
+	m_bots_pet->AddObjectToRemoveList();
+	m_bots_pet = NULL;
+	((AbsirBotCreature *)bot)->petCreature = NULL;
+	AB_GetBotAI(bot)->UnsummonAll();
+	//bot->KillEvents(true);
+
+	if (bot->IsInWorld())
+	{
+		//bot->MonsterWhisper("teleport...", bot->GetBotAI()->GetBotOwnerGuid());
+		bot->CastSpell(bot, COSMETIC_TELEPORT_EFFECT, true);
+	}
+
+	bot->IsAIEnabled = false;
+	//UnitAI* oldAI = bot->GetAI();
+	//bot->SetAI(NULL);
+
+	//if (bot->IsFreeBot() || bot->GetBotOwner()->GetSession()->isLogingOut())
+	//{
+	//    bot->FarTeleportTo(newMap, x, y, z, ori);
+
+	//    //bot->SetAI(oldAI);
+	//    bot->IsAIEnabled = true;
+	//    return;
+	//}
+
+	////start Unit::CleanupBeforeRemoveFromMap()
+	if (bot->IsInWorld())
+		bot->RemoveFromWorld();
+
+	ASSERT(bot->GetGUID());
+
+	// A unit may be in removelist and not in world, but it is still in grid
+	// and may have some references during delete
+	//RemoveAllAuras();
+	bot->RemoveAllGameObjects();
+
+	//if (finalCleanup)
+	//    m_cleanupDone = true;
+
+	bot->m_Events.KillAllEvents(false);                      // non-delatable (currently casted spells) will not deleted now but it will deleted at call in Map::RemoveAllObjectsInRemoveList
+	bot->CombatStop();
+	bot->ClearComboPointHolders();
+	//bot->DeleteThreatList();
+	bot->getHostileRefManager().setOnlineOfflineState(false);
+	//bot->GetMotionMaster()->Clear(false);                    // remove different non-standard movement generators.
+	//end Unit::CleanupBeforeRemoveFromMap()
+
+	//bot->CleanupBeforeRemoveFromMap(false);
+
+	AB_BotStopMovement(bot);
+
+	if (Map* mymap = bot->FindMap())
+		mymap->RemoveFromMap(bot, false);
+
+	if (AB_IsFreeBot(bot)/* || bot->GetBotOwner()->GetSession()->isLogingOut()*/)
+	{
+		//bot->FarTeleportTo(newMap, x, y, z, ori);
+
+		//Creature::FarTeleportTo()
+		//{
+		//CleanupBeforeRemoveFromMap(false); //done above
+		//GetMap()->RemoveFromMap(this, false); //done above
+		//Relocate(X, Y, Z, O);
+		//SetMap(map);
+		//GetMap()->AddToMap(this);
+		//}
+		bot->Relocate(position);
+		bot->SetMap(newMap);
+		bot->GetMap()->AddToMap(bot);
+		//end Creature::FarTeleportTo()
+
+		//bot->SetAI(oldAI);
+		bot->IsAIEnabled = true;
+		return;
+	}
+
+	//update group member online state
+	if (Group* gr = AB_GetBotOwner(bot)->GetGroup())
+		if (gr->IsMember(bot->GetGUID()))
+			gr->SendUpdate();
+
+	//bot->Relocate(x, y, z);
+	TeleportFinishEvent* finishEvent = new TeleportFinishEvent(AB_GetBotMinionAI(bot)/*, newMap->GetId(), newMap->GetInstanceId(), x, y, z, ori*/);
+	AB_GetBotAI(bot)->GetEvents()->AddEvent(finishEvent, AB_GetBotAI(bot)->GetEvents()->CalculateTime(urand(5000, 8000)));
+	AB_GetBotMinionAI(bot)->SetTeleportFinishEvent(finishEvent);
+}
+
+void ab_reviveBot(Creature* bot)
+{
+	if (bot->IsAlive())
+		return;
+
+	if (!AB_GetBotAI(bot)->IAmFree())
+		bot->Relocate(AB_GetBotOwner(bot));
+
+	bot->SetUInt32Value(UNIT_NPC_FLAGS, bot->GetCreatureTemplate()->npcflag);
+	bot->ClearUnitState(uint32(UNIT_STATE_ALL_STATE));
+	bot->setDeathState(ALIVE);
+	//bot->GetBotAI()->Reset();
+	//bot->SetBotShouldUpdateStats();
+	AB_GetBotAI(bot)->SetShouldUpdateStats();
+
+	bot->SetHealth(bot->GetMaxHealth() / 6); //~15% of max health
+	if (bot->getPowerType() == POWER_MANA)
+		bot->SetPower(POWER_MANA, bot->GetMaxPower(POWER_MANA) / 5); //20% of max mana
+
+	if (!AB_GetBotAI(bot)->IAmFree())
+		AB_SetBotCommandState(bot, COMMAND_FOLLOW, true);
+}
+
+static BotMap _S_BOT_MAP;
+
+BotMap *ab_getBotMap(Player *player)
+{
+	Group *group = player->GetGroup();
+	if (group) {
+		BotMap *botMap = new BotMap();
+		const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+		for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
+			ObjectGuid uid = witr->guid;
+			Creature *firstMember = NULL;
+			if (uid.GetHigh() == HIGHGUID_UNIT) {
+				Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
+				if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
+					if (member->GetOwner() == player) {
+						if (firstMember == NULL) {
+							firstMember = member;
+						}
+
+						botMap->insert(BotMap::value_type(uid, member));
+					}
+				}
+
+				if (firstMember != NULL) {
+					AbsirBotCreature *botCreature = (AbsirBotCreature *)firstMember;
+					BotMap *oldBotMap = botCreature->botMap;
+					if (oldBotMap != NULL) {
+						delete oldBotMap;
+					}
+
+					botCreature->botMap = botMap;
+					return botMap;
+				}
+			}
+		}
+
+		delete botMap;
+	}
+
+	return &_S_BOT_MAP;
+}
+
 /*
 NpcBot System by Graff (onlysuffering@gmail.com)
 Original patch from: LordPsyan https://bitbucket.org/lordpsyan/trinitycore-patches/src/3b8b9072280e/Individual/11185-BOTS-NPCBots.patch
@@ -910,7 +1114,7 @@ void bot_minion_ai::CureGroup(Player* pTarget, uint32 cureSpell, uint32 diff)
             if (!tPlayer->IsInWorld() || tPlayer->IsBeingTeleported()) continue;
             if (me->GetMap() != tPlayer->FindMap()) continue;
 			
-            BotMap const* map = AB_GetBotMap(player);
+			BotMap const* map = AB_GetBotMap(tPlayer);
             for (BotMap::const_iterator it = map->begin(); it != map->end(); ++it)
             {
                 Creature* cre = it->second;
@@ -3160,7 +3364,7 @@ Unit* bot_minion_ai::FindAOETarget(float dist, bool checkbots, bool targetfriend
         if (tPlayer == NULL || !AB_HaveBot(tPlayer)) continue;
         if (!tPlayer->IsInWorld() || tPlayer->IsBeingTeleported()) continue;
         if (me->GetMap() != tPlayer->FindMap()) continue;
-        BotMap const* map = AB_GetBotMap(player);
+		BotMap const* map = AB_GetBotMap(tPlayer);
         for (BotMap::const_iterator it = map->begin(); it != map->end(); ++it)
         {
             Creature* bot = it->second;

@@ -150,6 +150,10 @@ AbsirBotCreature::~AbsirBotCreature() {
 	if (m_botAi) {
 		delete m_botAi;
 	}
+
+	if (botMap) {
+		delete botMap;
+	}
 }
 
 AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint32 phaseMask, uint32 entry, float x, float y, float z, float ang, CreatureData const* data, uint32 vehId)
@@ -205,7 +209,6 @@ Player *AbsirBotCreature::getBotPlayer()
 
 		// Create Bot AI
 		// m_botAi = createBotAI(this);
-		// m_botAi = //bot_ai::CreatureAI();
 	}
 
 	return m_botPlayer;

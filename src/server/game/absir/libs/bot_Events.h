@@ -85,7 +85,7 @@ class TeleportFinishEvent : public BasicEvent
 {
     friend class bot_minion_ai;
     friend class BotMgr;
-    protected:
+    public:
         TeleportFinishEvent(bot_minion_ai* ai/*, uint32 mapId, uint32 instanceId, float x, float y, float z, float o*/) :
              _ai(ai)//, _mapId(mapId), _instanceId(instanceId), _x(x), _y(y), _z(z), _o(o)
              { }

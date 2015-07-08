@@ -37,40 +37,45 @@ class TeleportFinishEvent;
 #define AB_HaveBot(player) (player->absirGameFlag & AB_FLAG_HAS_BOT) != 0 
 #define AB_GetNpcBotsCount(player) 5
 #define AB_SetCanUpdate(unit) unit->SetCanModifyStats(true)
+void ab_botStopMovement(Unit *unit);
 #define AB_BotStopMovement(unit) unit->StopMoving()
+Creature *ab_getCreatureOwner(Unit* unit);
+#define AB_GetCreatureOwner(unit) ab_getCreatureOwner(unit)
+#define AB_SetCreatureOwner(pet, creature) pet->SetOwnerGUID(creature->GetGUID())
+void ab_teleportBot(Creature* bot, Map* newMap, Position position);
+#define AB_TeleportBot(player, creature) AB_TeleportBotPos(creature, player->GetMap(), &player->GetPosition())
+#define AB_TeleportBotPos(creature, map, pos) ab_teleportBot(creature, map, *pos)
 
-#define AB_GetCreatureOwner(creature) creature
-#define AB_SetCreatureOwner(pet, creature)
+#define AB_GetBotAI(creature) (((AbsirBotCreature *)creature)->botAI)
+#define AB_SetBotAI(creature, ai) ((AbsirBotCreature *)creature)->botAI = ai
+bot_pet_ai *ab_getBotPetAI(Creature *creature);
+#define AB_GetBotPetAI(creature) ab_getBotPetAI(creature)
+bot_minion_ai *ab_getBotMinionAI(Creature *creature);
+#define AB_GetBotMinionAI(creature) ab_getBotMinionAI(creature)
+bool ab_isFreeBot(const Creature *creature);
+#define AB_IsFreeBot(creature) ab_isFreeBot(creature)
 
-typedef std::unordered_map<uint64 /*guid*/, Creature* /*bot*/> BotMap;
-static BotMap _S_BOT_MAP;
-
-#define AB_GetBotMap(player) &_S_BOT_MAP
-#define AB_RemoveBot(player, guid)
-#define AB_AddBotToGroup(player, creature)
-#define AB_TeleportBot(player, creature)
-#define AB_TeleportBotPos(creature, map, pos)
-#define AB_GetBotsPet(creature) NULL
+#define AB_GetBotsPet(creature) (((AbsirBotCreature *)creature)->petCreature)
+#define AB_SetBotsPet(creature, pet) ((AbsirBotCreature *)creature)->petCreature = pet
 #define AB_SetBotsPetDied(pet) 
 #define AB_SetBotOwner(pet, player)
-
-
-static bot_ai *_S_BOT_AI;
-#define AB_GetBotAI(creature) _S_BOT_AI
-#define AB_IsFreeBot(creature) false
-static Player *_S_PLAYER;
-#define AB_GetBotOwner(creature) _S_PLAYER
-#define AB_GetBotClass(creature) 0
-#define AB_ReviveBot(creature)
+#define AB_RemoveBot(player, guid)
+#define AB_AddBotToGroup(player, creature)
+#define AB_GetBotOwner(creature) (((AbsirBotCreature *)creature)->getOwnerPlayer())
+uint8 ab_getBotClass(const Creature *creature);
+#define AB_GetBotClass(creature) ab_getBotClass(creature)
 #define AB_GetBotFollowDist(player) 100
 #define AB_SetBotFollowDist(player, distance)
-#define AB_RestrictBots(player, creature) true
-#define AB_SetBotsPet(creature, pet) 
+void ab_reviveBot(Creature* bot);
+#define AB_ReviveBot(bot) ab_reviveBot(bot)
+#define AB_RestrictBots(player, creature) false
 #define AB_SetBotCommandState(bot, command) AB_SetBotCommandStateFlag(bot, command, false)
-#define AB_SetBotCommandStateFlag(bot, command, flag) 
-#define AB_SetBotAI(creature, ai)
-#define AB_GetBotPetAI(creature) ((bot_pet_ai *)_S_BOT_AI)
-#define AB_GetBotMinionAI(creature) ((bot_minion_ai *)_S_BOT_AI)
+void ab_setBotCommandStateFlag(const Creature *creature, CommandStates st, bool force);
+#define AB_SetBotCommandStateFlag(bot, command, flag) ab_setBotCommandStateFlag(bot, command, flag)
+
+typedef std::unordered_map<uint64 /*guid*/, Creature* /*bot*/> BotMap;
+BotMap *ab_getBotMap(Player *player);
+#define AB_GetBotMap(player) ab_getBotMap(player)
 
 enum CommonValues
 {
