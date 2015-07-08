@@ -2,6 +2,7 @@
 #define _BOT_AI_H
 
 #include "AbsirGame.h"
+#include "AbsirBotCreature.h"
 #include "ScriptedCreature.h"
 /*
 NpcBot System by Graff (onlysuffering@gmail.com)
@@ -33,11 +34,13 @@ class TeleportFinishEvent;
 
 #define AB_IS_BOT_UNIT(unit) (unit->absirGameFlag & AB_FLAG_IS_BOT) != 0
 #define AB_IS_BOT_PET_UNIT(unit) (unit->absirGameFlag & AB_FLAG_IS_BOT_PET) != 0
-#define AB_GetCreatureOwner(creature) creature
+#define AB_HaveBot(player) (player->absirGameFlag & AB_FLAG_HAS_BOT) != 0 
 #define AB_GetNpcBotsCount(player) 5
 #define AB_SetCanUpdate(unit) unit->SetCanModifyStats(true)
 #define AB_BotStopMovement(unit) unit->StopMoving()
-#define AB_HaveBot(player) (player->absirGameFlag & AB_FLAG_HAS_BOT) != 0 
+
+#define AB_GetCreatureOwner(creature) creature
+#define AB_SetCreatureOwner(pet, creature)
 
 typedef std::unordered_map<uint64 /*guid*/, Creature* /*bot*/> BotMap;
 static BotMap _S_BOT_MAP;
@@ -48,11 +51,9 @@ static BotMap _S_BOT_MAP;
 #define AB_TeleportBot(player, creature)
 #define AB_TeleportBotPos(creature, map, pos)
 #define AB_GetBotsPet(creature) NULL
-#define AB_SetBotsPetDied(creature) 
-#define AB_SetBotsPetDied(creature) 
-#define AB_SetBotsPetDied(pet)
+#define AB_SetBotsPetDied(pet) 
 #define AB_SetBotOwner(pet, player)
-#define AB_SetCreatureOwner(pet, creature)
+
 
 static bot_ai *_S_BOT_AI;
 #define AB_GetBotAI(creature) _S_BOT_AI
@@ -65,7 +66,7 @@ static Player *_S_PLAYER;
 #define AB_SetBotFollowDist(player, distance)
 #define AB_RestrictBots(player, creature) true
 #define AB_SetBotsPet(creature, pet) 
-#define AB_SetBotCommandState(bot, command) 
+#define AB_SetBotCommandState(bot, command) AB_SetBotCommandStateFlag(bot, command, false)
 #define AB_SetBotCommandStateFlag(bot, command, flag) 
 #define AB_SetBotAI(creature, ai)
 #define AB_GetBotPetAI(creature) ((bot_pet_ai *)_S_BOT_AI)

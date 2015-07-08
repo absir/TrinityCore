@@ -591,7 +591,7 @@ void bot_minion_ai::SetBotCommandState(CommandStates st, bool force, Position* n
     { }
     m_botCommandState = st;
     if (Creature* m_botsPet = AB_GetBotsPet(me))
-		AB_SetBotCommandState(m_botsPet, st, force);
+		AB_SetBotCommandStateFlag(m_botsPet, st, force);
 }
 
 void bot_pet_ai::SetBotCommandState(CommandStates st, bool force, Position* /*newpos*/)
@@ -5273,7 +5273,7 @@ void bot_minion_ai::SummonBotsPet(uint32 entry)
     //bot_pet_ai* petai = m_botsPet->GetBotPetAI();
     //petai->SetCreatureOwner(me);
     //petai->SetBaseArmor(armor);
-	AB_SetBotCommandState(m_botsPet, COMMAND_FOLLOW, true);
+	AB_SetBotCommandStateFlag(m_botsPet, COMMAND_FOLLOW, true);
 
 	AB_SetBotsPet(me, m_botsPet);
 
@@ -7711,7 +7711,7 @@ void bot_minion_ai::EnterEvadeMode(bool /*force*/)
         {
             me->GetMotionMaster()->MovePoint(mapid, pos);
             if (pet)
-                AB_SetBotCommandState(pet, COMMAND_FOLLOW, true);
+                AB_SetBotCommandStateFlag(pet, COMMAND_FOLLOW, true);
         }
 
         return;

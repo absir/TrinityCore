@@ -5,6 +5,7 @@
 
 class AbsirBotCreature;
 class AbsirBotSession;
+class bot_ai;
 
 typedef struct _AbsirBotData {
 
@@ -102,13 +103,13 @@ public:
 	AbsirBotCreature();
 	~AbsirBotCreature();
 	Player *getOwnerPlayer() { return m_owerPlayer; };
-	AbsirBotAI *getBotAI() { return m_botAi; };
+	bot_ai *getBotAI() { return m_botAi; };
 	Player *getBotPlayer();
 	AbsirBotData getBotData() { return m_botData; };
 
 private:
 	Player *m_owerPlayer = NULL;
-	AbsirBotAI *m_botAi = NULL;
+	bot_ai *m_botAi = NULL;
 	Player *m_botPlayer = NULL;
 	AbsirBotData m_botData;
 };

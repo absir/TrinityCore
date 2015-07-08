@@ -2,6 +2,7 @@
 #include "WorldSocket.h"
 #include "GroupMgr.h"
 #include "MySQLConnection.h"
+#include "bot_ai.h"
 
 static AbsirBotAI *createBotAI(AbsirBotCreature *botCreature) {
 	// 
@@ -203,7 +204,8 @@ Player *AbsirBotCreature::getBotPlayer()
 		m_owerPlayer->absirGameFlag |= AB_FLAG_HAS_BOT;
 
 		// Create Bot AI
-		m_botAi = createBotAI(this);
+		// m_botAi = createBotAI(this);
+		// m_botAi = //bot_ai::CreatureAI();
 	}
 
 	return m_botPlayer;
