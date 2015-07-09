@@ -17726,7 +17726,7 @@ bool Player::LoadFromDB(ObjectGuid guid, SQLQueryHolder *holder)
 
     _LoadEquipmentSets(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_EQUIPMENT_SETS));
 
-	AbsirBotCreature::saveBotCreatures(this);
+	AbsirBotCreature::loadBotCreatures(this);
 
     return true;
 }

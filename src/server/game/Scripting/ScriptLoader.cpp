@@ -1420,10 +1420,12 @@ void AddBattlegroundScripts()
 
 #endif
 
+int _ab_initCustomeScripte();
+
 void AddCustomScripts()
 {
 #ifdef SCRIPTS
     /* This is where custom scripts should be added. */
-
+	_ab_initCustomeScripte();
 #endif
 }

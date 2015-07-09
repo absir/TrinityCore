@@ -11,6 +11,29 @@
 #include "SpellAuraEffects.h"
 #include "AbsirBotCreature.h"
 
+uint32 ab_getNpcBotsCount(Player *player) {
+	uint32 count = 0;
+	Group *group = player->GetGroup();
+	if (group) {
+		BotMap *botMap = new BotMap();
+		const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+		for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
+			ObjectGuid uid = witr->guid;
+			Creature *firstMember = NULL;
+			if (uid.GetHigh() == HIGHGUID_UNIT) {
+				Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
+				if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
+					if (member->GetOwner() == player) {
+						count++;
+					}
+				}
+			}
+		}
+	}
+
+	return count;
+}
+
 bot_pet_ai *ab_getBotPetAI(Creature *creature) {
 	bot_ai *ai = AB_GetBotAI(creature);
 	return ai ? (bot_pet_ai *)ai->GetPetAI() : NULL; 
@@ -37,7 +60,13 @@ void ab_setBotCommandStateFlag(const Creature *creature, CommandStates st, bool 
 }
 
 Creature *ab_getCreatureOwner(Unit *unit) {
+	// sObjectAccessor->GetObjectInWorld(unit->GetOwnerGUID(), (Creature *)NULL)
+	// (Pet *)unit->GetOwner()
 	return (unit->absirGameFlag & AB_FLAG_IS_BOT) != 0 ? (Creature *)unit : sObjectAccessor->GetObjectInWorld(unit->GetOwnerGUID(), (Creature *)NULL);
+}
+
+void ab_setCreatureOwner(Unit *unit, Unit *creature) {
+	unit->SetOwnerGUID(creature->GetGUID());
 }
 
 void ab_botStopMovement(Unit *unit) {
@@ -170,7 +199,7 @@ void ab_reviveBot(Creature* bot)
 		bot->SetPower(POWER_MANA, bot->GetMaxPower(POWER_MANA) / 5); //20% of max mana
 
 	if (!AB_GetBotAI(bot)->IAmFree())
-		AB_SetBotCommandState(bot, COMMAND_FOLLOW, true);
+		ab_setBotCommandStateFlag(bot, COMMAND_FOLLOW, true);
 }
 
 static BotMap _S_BOT_MAP;

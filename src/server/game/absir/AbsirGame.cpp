@@ -5,6 +5,8 @@
 #include "AbsirBotCreature.h"
 #include "MySQLConnection.h"
 
+//#include 
+
 //===================================
 //    Base64 ½âÂë
 //===================================
@@ -154,11 +156,59 @@ AbsirGame *AbsirGame::getInstance()
 	return _instance;
 }
 
+//config
+int8 _basefollowdist;
+uint8 _maxNpcBots;
+uint8 _maxClassNpcBots;
+uint8 _xpReductionNpcBots;
+uint8 _healTargetIconFlags;
+uint32 _npcBotsCost;
+bool _enableNpcBots;
+bool _enableNpcBotsDungeons;
+bool _enableNpcBotsRaids;
+bool _enableNpcBotsBGs;
+bool _enableNpcBotsArenas;
+bool _enableDungeonFinder;
+bool _limitNpcBotsDungeons;
+bool _limitNpcBotsRaids;
+bool _botPvP;
+float _mult_dmg_melee;
+float _mult_dmg_spell;
+float _mult_healing;
+
 AbsirGame::AbsirGame()
 {
 	abWildHunt = sConfigMgr->GetBoolDefault("AB_WildHunt", true);
-	abNpcHire = sConfigMgr->GetBoolDefault("AB_NpcHung", true);
-	abNpcHire_Reputation = sConfigMgr->GetBoolDefault("AB_NpcHung.Reputation", true);
+	abNpcHire = sConfigMgr->GetBoolDefault("AB_NpcHire", true);
+	abNpcHire_Reputation = sConfigMgr->GetBoolDefault("AB_NpcHire.Reputation", true);
+
+	//_enableNpcBots = sConfigMgr->GetBoolDefault("NpcBot.Enable", true);
+	_enableNpcBots = abNpcHire;
+	_maxNpcBots = sConfigMgr->GetIntDefault("NpcBot.MaxBots", 1);
+	_maxClassNpcBots = sConfigMgr->GetIntDefault("NpcBot.MaxBotsPerClass", 1);
+	_basefollowdist = sConfigMgr->GetIntDefault("NpcBot.BaseFollowDistance", 30);
+	_xpReductionNpcBots = sConfigMgr->GetIntDefault("NpcBot.XpReduction", 0);
+	_healTargetIconFlags = sConfigMgr->GetIntDefault("NpcBot.HealTargetIconsMask", 0);
+	_mult_dmg_melee = sConfigMgr->GetFloatDefault("NpcBot.Mult.Damage.Melee", 1.0);
+	_mult_dmg_spell = sConfigMgr->GetFloatDefault("NpcBot.Mult.Damage.Spell", 1.0);
+	_mult_healing = sConfigMgr->GetFloatDefault("NpcBot.Mult.Healing", 1.0);
+	_enableNpcBotsDungeons = sConfigMgr->GetBoolDefault("NpcBot.Enable.Dungeon", true);
+	_enableNpcBotsRaids = sConfigMgr->GetBoolDefault("NpcBot.Enable.Raid", false);
+	_enableNpcBotsBGs = sConfigMgr->GetBoolDefault("NpcBot.Enable.BG", false);
+	_enableNpcBotsArenas = sConfigMgr->GetBoolDefault("NpcBot.Enable.Arena", false);
+	_enableDungeonFinder = sConfigMgr->GetBoolDefault("NpcBot.Enable.DungeonFinder", true);
+	_limitNpcBotsDungeons = sConfigMgr->GetBoolDefault("NpcBot.Limit.Dungeon", true);
+	_limitNpcBotsRaids = sConfigMgr->GetBoolDefault("NpcBot.Limit.Raid", true);
+	_npcBotsCost = sConfigMgr->GetIntDefault("NpcBot.Cost", 1000000);
+	_botPvP = sConfigMgr->GetBoolDefault("NpcBot.PvP", true);
+
+	//limits
+	_mult_dmg_melee = std::max(_mult_dmg_melee, 0.1f);
+	_mult_dmg_spell = std::max(_mult_dmg_spell, 0.1f);
+	_mult_healing = std::max(_mult_healing, 0.1f);
+	_mult_dmg_melee = std::min(_mult_dmg_melee, 10.f);
+	_mult_dmg_spell = std::min(_mult_dmg_spell, 10.f);
+	_mult_healing = std::min(_mult_healing, 10.f);
 }
 
 AbsirGame::~AbsirGame()
@@ -369,9 +419,34 @@ public:
 	}
 };
 
-static int initScripte() {
+void AddSC_death_knight_bot();
+void AddSC_druid_bot();
+void AddSC_hunter_bot();
+void AddSC_mage_bot();
+void AddSC_paladin_bot();
+void AddSC_priest_bot();
+void AddSC_rogue_bot();
+void AddSC_shaman_bot();
+void AddSC_warlock_bot();
+void AddSC_warrior_bot();
+void AddSC_blademaster_bot();
+// void AddSC_script_bot_commands();
+
+int _ab_initCustomeScripte() {
 	new AB_BotGroupScript();
+	AddSC_death_knight_bot();
+	AddSC_druid_bot();
+	AddSC_hunter_bot();
+	AddSC_mage_bot();
+	AddSC_paladin_bot();
+	AddSC_priest_bot();
+	AddSC_rogue_bot();
+	AddSC_shaman_bot();
+	AddSC_warlock_bot();
+	AddSC_warrior_bot();
+	AddSC_blademaster_bot();
+	// AddSC_script_bot_commands();
 	return 1;
 }
 
-static int _InitScriptes = initScripte();
+// static int _InitScriptes = initScripte();

@@ -10,7 +10,7 @@ Target Server Type    : MYSQL
 Target Server Version : 50509
 File Encoding         : 65001
 
-Date: 2015-07-07 10:25:17
+Date: 2015-07-09 23:34:35
 */
 
 SET FOREIGN_KEY_CHECKS=0;
@@ -28,7 +28,7 @@ CREATE TABLE `ab_character_bot` (
   `y` float DEFAULT NULL,
   `z` float DEFAULT NULL,
   `ang` float DEFAULT NULL,
-  `data` text,
+  `sdata` text,
   PRIMARY KEY (`guid`,`sequ`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 

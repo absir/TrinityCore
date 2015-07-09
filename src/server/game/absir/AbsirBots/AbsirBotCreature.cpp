@@ -73,7 +73,7 @@ void AbsirBotCreature::saveBotCreatures(Player *player)
 							size_t len = AB_Base64_Encode(encodeChr, (char *)&data, AB_BOT_DATA_SIZE);
 							encodeChr[len] = 0;
 							std::string dataStr = encodeChr;
-							CharacterDatabase.PExecute("INSERT INTO ab_character_bot SET(guid, entry, sequ, phaseMask, x, y, z, ang, data) VALUES (%u, %u, %d, %u, %f, %f, %f, %f, %s)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), member->GetOrientation(), dataStr);
+							CharacterDatabase.PExecute("INSERT INTO ab_character_bot (guid, entry, sequ, phaseMask, x, y, z, ang, sdata) VALUES (%u, %u, %d, %u, %f, %f, %f, %f, %s)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), member->GetOrientation(), dataStr);
 							delete encodeChr;
 						}
 						catch(double e) {
@@ -91,7 +91,7 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) == 0) {
 		uint32 guid = player->GetGUID();
 		bool saveError = false;
-		QueryResult result = CharacterDatabase.PQuery("SELECT entry, sequ, phaseMask, x, y, z, ang, data FROM ab_character_bot WHERE guid = %u ORDER BY sequ", guid);
+		QueryResult result = CharacterDatabase.PQuery("SELECT entry, sequ, phaseMask, x, y, z, ang, sdata FROM ab_character_bot WHERE guid = %u ORDER BY sequ", guid);
 		if (result)
 		{
 			do{
@@ -147,6 +147,10 @@ AbsirBotCreature::AbsirBotCreature() : Creature(true){
 }
 
 AbsirBotCreature::~AbsirBotCreature() {
+	if (botAI) {
+		botAI->UnsummonAll();
+	}
+
 	if (m_botAi) {
 		delete m_botAi;
 	}

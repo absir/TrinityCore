@@ -34,14 +34,16 @@ class TeleportFinishEvent;
 
 #define AB_IS_BOT_UNIT(unit) (unit->absirGameFlag & AB_FLAG_IS_BOT) != 0
 #define AB_IS_BOT_PET_UNIT(unit) (unit->absirGameFlag & AB_FLAG_IS_BOT_PET) != 0
-#define AB_HaveBot(player) (player->absirGameFlag & AB_FLAG_HAS_BOT) != 0 
-#define AB_GetNpcBotsCount(player) 5
+#define AB_HaveBot(player) (player->absirGameFlag & AB_FLAG_HAS_BOT) != 0
+uint32 ab_getNpcBotsCount(Player *player);
+#define AB_GetNpcBotsCount(player) ab_getNpcBotsCount(player)
 #define AB_SetCanUpdate(unit) unit->SetCanModifyStats(true)
 void ab_botStopMovement(Unit *unit);
-#define AB_BotStopMovement(unit) unit->StopMoving()
+#define AB_BotStopMovement(unit) ab_botStopMovement(unit)
 Creature *ab_getCreatureOwner(Unit* unit);
 #define AB_GetCreatureOwner(unit) ab_getCreatureOwner(unit)
-#define AB_SetCreatureOwner(pet, creature) pet->SetOwnerGUID(creature->GetGUID())
+void ab_setCreatureOwner(Unit *unit, Unit *creature);
+#define AB_SetCreatureOwner(pet, creature) ab_setCreatureOwner(pet, creature)
 void ab_teleportBot(Creature* bot, Map* newMap, Position position);
 #define AB_TeleportBot(player, creature) AB_TeleportBotPos(creature, player->GetMap(), &player->GetPosition())
 #define AB_TeleportBotPos(creature, map, pos) ab_teleportBot(creature, map, *pos)
