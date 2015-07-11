@@ -105,6 +105,8 @@ public:
 	*/
 	bool onGossipSelect(CreatureScript *tmpscript, Player *player, Creature *creature, uint32 sender, uint32 action);
 
+	bool getABNpcHire() { return abNpcHire; };
+
 private:
 	bool abWildHunt;
 	bool abNpcHire;

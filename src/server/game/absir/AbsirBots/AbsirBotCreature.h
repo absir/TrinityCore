@@ -5,11 +5,11 @@
 
 class AbsirBotCreature;
 class AbsirBotSession;
-class bot_ai;
 
 typedef struct _AbsirBotData {
-
-
+	bool follow = true;
+	float distance = PET_FOLLOW_DIST;
+	float angle = 0;
 
 } AbsirBotData;
 
@@ -62,31 +62,26 @@ m_maxEnchantingLevel = player->GetSkillValue(SKILL_ENCHANTING);
 return true;
 
 @5
-Player.cpp
-m_achievementMgr->CheckAllAchievementCriteria();
-
-_LoadEquipmentSets(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_EQUIPMENT_SETS));
-
-AbsirBotCreature::saveBotCreatures(this);
-
-return true;
-
-@6
-Player.cpp
-else
+//npcbot - check if trying to add bot
+if (player->GetGUID().GetHigh() == HIGHGUID_PLAYER)
 {
-AbsirBotCreature::saveBotCreatures(this);
+//end npcbot
+// insert into the table if we're not a battleground group
+if (!isBGGroup() && !isBFGroup())
+{
+PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GROUP_MEMBER);
 
-// Update query
-stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHARACTER);
-stmt->setString(index++, GetName());
+stmt->setUInt32(0, m_dbStoreId);
+stmt->setUInt32(1, member.guid.GetCounter());
+stmt->setUInt8(2, member.flags);
+stmt->setUInt8(3, member.group);
+stmt->setUInt8(4, member.roles);
 
-@7
-group.h
-// FG: evil hacks
-void BroadcastGroupUpdate(void);
-
-const ObjectGuid *GetTargetIcons() { return m_targetIcons; }
+CharacterDatabase.Execute(stmt);
+}
+//npcbot
+}
+//end npcbot
 */
 class AbsirBotCreature : public Creature
 {
@@ -99,23 +94,26 @@ public:
 
 	static void saveBotCreatures(Player *player);
 	static void loadBotCreatures(Player *player);
+	static void clearBotCreatures(Player *player);
+	static void changeLevelPlayer(Player *player);
+	static void attackToUnit(Player *player, Unit *unit);
+	static void changeMap(Player *player);
 
 	AbsirBotCreature();
 	~AbsirBotCreature();
 	Player *getOwnerPlayer() { return m_owerPlayer; };
-	AbsirBotAI *getBotAI() { return m_botAi; };
 	Player *getBotPlayer();
 	AbsirBotData getBotData() { return m_botData; };
 
-	Creature *petCreature = NULL;
-	bot_ai *botAI = NULL;
-	std::unordered_map<uint64 /*guid*/, Creature* /*bot*/> *botMap = NULL;
+	void updateOwnerData();
+	void updateBotData();
+	void Update(uint32 time) override;
 
 private:
 	Player *m_owerPlayer = NULL;
-	AbsirBotAI *m_botAi = NULL;
 	Player *m_botPlayer = NULL;
 	AbsirBotData m_botData;
+	AbsirBotAI *m_botAI = NULL;
 };
 
 #endif

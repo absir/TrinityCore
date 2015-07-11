@@ -394,6 +394,10 @@ bool Group::AddMember(Player* player)
             m_targetIcons[i].Clear();
     }
 
+	//npcbot - check if trying to add bot
+	if (player->GetGUID().GetHigh() == HIGHGUID_PLAYER)
+	{
+	//end npcbot
     // insert into the table if we're not a battleground group
     if (!isBGGroup() && !isBFGroup())
     {
@@ -407,6 +411,9 @@ bool Group::AddMember(Player* player)
 
         CharacterDatabase.Execute(stmt);
     }
+	//npcbot
+	}
+	//end npcbot
 
     SendUpdate();
     sScriptMgr->OnGroupAddMember(this, player->GetGUID());

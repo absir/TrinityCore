@@ -17725,9 +17725,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SQLQueryHolder *holder)
     m_achievementMgr->CheckAllAchievementCriteria();
 
     _LoadEquipmentSets(holder->GetPreparedResult(PLAYER_LOGIN_QUERY_LOAD_EQUIPMENT_SETS));
-
-	AbsirBotCreature::loadBotCreatures(this);
-
     return true;
 }
 
@@ -19208,8 +19205,6 @@ void Player::SaveToDB(bool create /*=false*/)
     }
     else
     {
-		AbsirBotCreature::saveBotCreatures(this);
-
         // Update query
         stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_CHARACTER);
         stmt->setString(index++, GetName());

@@ -2,7 +2,8 @@
 #include "WorldSocket.h"
 #include "GroupMgr.h"
 #include "MySQLConnection.h"
-#include "bot_ai.h"
+#include "UnitAI.h"
+#include "CreatureAI.h"
 
 static AbsirBotAI *createBotAI(AbsirBotCreature *botCreature) {
 	// 
@@ -62,6 +63,7 @@ void AbsirBotCreature::saveBotCreatures(Player *player)
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
 			// CharacterDatabase.PExecute("DELETE FROM ab_character_bot WHERE guid = ? AND sequ >= 0", guid);
 			int8 sequ = 0;
+			std::list<Creature *> removeMembers;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				ObjectGuid uid = witr->guid;
 				if (uid.GetHigh() == HIGHGUID_UNIT) {
@@ -73,7 +75,7 @@ void AbsirBotCreature::saveBotCreatures(Player *player)
 							size_t len = AB_Base64_Encode(encodeChr, (char *)&data, AB_BOT_DATA_SIZE);
 							encodeChr[len] = 0;
 							std::string dataStr = encodeChr;
-							CharacterDatabase.PExecute("INSERT INTO ab_character_bot (guid, entry, sequ, phaseMask, x, y, z, ang, sdata) VALUES (%u, %u, %d, %u, %f, %f, %f, %f, %s)", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), member->GetOrientation(), dataStr);
+							CharacterDatabase.PExecute("INSERT INTO ab_character_bot (guid, entry, sequ, phaseMask, x, y, z, ang, sdata) VALUES (%u, %u, %d, %u, %f, %f, %f, %f, '%s')", guid, member->GetEntry(), ++sequ, member->GetPhaseMask(), member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), member->GetOrientation(), dataStr.c_str());
 							delete encodeChr;
 						}
 						catch(double e) {
@@ -82,13 +84,15 @@ void AbsirBotCreature::saveBotCreatures(Player *player)
 					}
 				}
 			}
+
+			CharacterDatabase.PExecute("DELETE FROM ab_character_bot WHERE guid = %u AND sequ < 0", guid);
 		}
 	}
 }
 
 void AbsirBotCreature::loadBotCreatures(Player *player)
 {
-	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) == 0) {
+	if (sAbsirGame->getABNpcHire() && (player->absirGameFlag & AB_FLAG_HAS_BOT) == 0) {
 		uint32 guid = player->GetGUID();
 		bool saveError = false;
 		QueryResult result = CharacterDatabase.PQuery("SELECT entry, sequ, phaseMask, x, y, z, ang, sdata FROM ab_character_bot WHERE guid = %u ORDER BY sequ", guid);
@@ -96,8 +100,8 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 		{
 			do{
 				Field *fields = result->Fetch();
-				uint32 entry = fields->GetUInt32();
-				int8 sequ = fields->GetInt8();
+				uint32 entry = fields[0].GetUInt32();
+				int8 sequ = fields[1].GetInt8();
 				if (sequ < 0) {
 					saveError = true;
 				
@@ -105,15 +109,15 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 					break;
 				}
 
-				uint32 phaseMask = fields->GetUInt32();
-				float x = fields->GetFloat();
-				float y = fields->GetFloat();
-				float z = fields->GetFloat();
-				float ang = fields->GetFloat();
+				uint32 phaseMask = fields[2].GetUInt32();
+				float x = fields[3].GetFloat();
+				float y = fields[4].GetFloat();
+				float z = fields[5].GetFloat();
+				float ang = fields[6].GetFloat();
 				AbsirBotCreature *creature = AbsirBotCreature::createBotData(player, player->GetMap(), phaseMask, entry, x, y, z, ang);
 				if (creature) {
 					// Decode Base64
-					std::string dataStr = fields->GetString();
+					std::string dataStr = fields[7].GetString();
 					const char *chr = dataStr.c_str();
 					size_t len = strlen(chr);
 					char *decodeChr = new char[len];
@@ -126,6 +130,7 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 
 						_memccpy(&botData, decodeChr, 0, len);
 						creature->m_botData = botData;
+						creature->updateBotData();
 						delete decodeChr;
 					}
 					catch (double e) {
@@ -143,20 +148,110 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 	}
 }
 
+void AbsirBotCreature::clearBotCreatures(Player *player) {
+	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
+		Group *group = player->GetGroup();
+		if (group != NULL) {
+			std::list<Creature *> removeMembers;
+			uint32 guid = player->GetGUID();
+			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+			int8 sequ = 0;
+			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
+				ObjectGuid uid = witr->guid;
+				if (uid.GetHigh() == HIGHGUID_UNIT) {
+					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
+					if (member && member->GetOwnerGUID() == guid) {
+						removeMembers.push_back(member);
+					}
+				}
+			}
+
+			for (std::list<Creature *>::iterator witr = removeMembers.begin(); witr != removeMembers.end(); ++witr) {
+				AbsirBotCreature::cleanUpFromWorld(*witr, group);
+			}
+
+			player->absirGameFlag &= ~AB_FLAG_HAS_BOT;
+		}
+	}
+}
+
+
+void AbsirBotCreature::changeLevelPlayer(Player *player) {
+	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
+		Group *group = player->GetGroup();
+		if (group != NULL) {
+			uint32 guid = player->GetGUID();
+			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+			int8 sequ = 0;
+			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
+				ObjectGuid uid = witr->guid;
+				if (uid.GetHigh() == HIGHGUID_UNIT) {
+					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
+					if (member && member->GetOwnerGUID() == guid) {
+						((AbsirBotCreature *)member)->updateOwnerData();
+					}
+				}
+			}
+		}
+	}
+}
+
+void AbsirBotCreature::attackToUnit(Player *player, Unit *unit)
+{
+	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
+		Group *group = player->GetGroup();
+		if (group != NULL) {
+			uint32 guid = player->GetGUID();
+			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+			int8 sequ = 0;
+			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
+				ObjectGuid uid = witr->guid;
+				if (uid.GetHigh() == HIGHGUID_UNIT) {
+					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
+					if (member && member->GetOwnerGUID() == guid) {
+						if (member->GetVictim() == NULL) {
+							member->Attack(unit, true);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void AbsirBotCreature::changeMap(Player *player) {
+	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
+		Group *group = player->GetGroup();
+		if (group != NULL) {
+			Map *map = player->GetMap();
+			Position position = player->GetPosition();
+			uint32 guid = player->GetGUID();
+			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
+			int8 sequ = 0;
+			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
+				ObjectGuid uid = witr->guid;
+				if (uid.GetHigh() == HIGHGUID_UNIT) {
+					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
+					if (member && member->GetOwnerGUID() == guid) {
+						if (member->GetMap() != map) {
+							member->GetMap()->RemoveFromMap(member, false);
+							member->SetMap(map);
+							member->Relocate(position);
+							map->AddToMap(member);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 AbsirBotCreature::AbsirBotCreature() : Creature(true){
 }
 
 AbsirBotCreature::~AbsirBotCreature() {
-	if (botAI) {
-		botAI->UnsummonAll();
-	}
-
-	if (m_botAi) {
-		delete m_botAi;
-	}
-
-	if (botMap) {
-		delete botMap;
+	if (m_botAI) {
+		delete m_botAI;
 	}
 }
 
@@ -164,7 +259,7 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 {
 	AbsirBotCreature *botCreature = new AbsirBotCreature();
 	Creature *creature = botCreature;
-	if (creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_PET), map, phaseMask, entry, x, y, z, ang, data, vehId)) {
+	if (creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, player->GetPhaseMaskForSpawn(), entry, x, y, z, ang, data, vehId)) {
 		Group *group = player->GetGroup();
 		if (group == NULL) {
 			group = new Group();
@@ -183,6 +278,7 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 			}
 
 			botCreature->m_owerPlayer = player;
+			botCreature->updateOwnerData();
 			if (group->AddMember(botCreature->getBotPlayer())) {
 				map->AddToMap(creature);
 				creature->setActive(true);
@@ -213,7 +309,40 @@ Player *AbsirBotCreature::getBotPlayer()
 
 		// Create Bot AI
 		// m_botAi = createBotAI(this);
+		SetUInt32Value(UNIT_NPC_FLAGS, m_owerPlayer->GetInt32Value(UNIT_NPC_FLAGS));
+		AddUnitTypeMask(UNIT_MASK_SUMMON);
+		SetUInt32Value(UNIT_FIELD_SUMMONEDBY, m_owerPlayer->GetGUID());
+		SetUInt32Value(UNIT_FIELD_CREATEDBY, m_owerPlayer->GetGUID());
+		GetMotionMaster()->Clear();
 	}
 
 	return m_botPlayer;
+}
+
+void AbsirBotCreature::updateOwnerData()
+{
+	SetLevel(m_owerPlayer->getLevel());
+}
+
+float randFollowBotAngel(Player *player) {
+	Group *group = player->GetGroup();
+	int count = group ? group->GetMembersCount() : 0;
+	float pi8 = M_2_PI / 8;
+	return pi8 * (count % 5 + 1) + pi8 / 8 * (int)(count / 5);
+}
+
+void AbsirBotCreature::updateBotData()
+{
+	if (m_botData.follow && m_botData.distance > 0) {
+		GetMotionMaster()->MoveFollow(m_owerPlayer, m_botData.distance, m_botData.angle == 0 ? randFollowBotAngel(m_owerPlayer) : 0);
+	}
+	else {
+		StopMoving();
+	}
+}
+
+void AbsirBotCreature::Update(uint32 time)
+{
+	Creature::Update(time);
+
 }

@@ -181,34 +181,6 @@ AbsirGame::AbsirGame()
 	abWildHunt = sConfigMgr->GetBoolDefault("AB_WildHunt", true);
 	abNpcHire = sConfigMgr->GetBoolDefault("AB_NpcHire", true);
 	abNpcHire_Reputation = sConfigMgr->GetBoolDefault("AB_NpcHire.Reputation", true);
-
-	//_enableNpcBots = sConfigMgr->GetBoolDefault("NpcBot.Enable", true);
-	_enableNpcBots = abNpcHire;
-	_maxNpcBots = sConfigMgr->GetIntDefault("NpcBot.MaxBots", 1);
-	_maxClassNpcBots = sConfigMgr->GetIntDefault("NpcBot.MaxBotsPerClass", 1);
-	_basefollowdist = sConfigMgr->GetIntDefault("NpcBot.BaseFollowDistance", 30);
-	_xpReductionNpcBots = sConfigMgr->GetIntDefault("NpcBot.XpReduction", 0);
-	_healTargetIconFlags = sConfigMgr->GetIntDefault("NpcBot.HealTargetIconsMask", 0);
-	_mult_dmg_melee = sConfigMgr->GetFloatDefault("NpcBot.Mult.Damage.Melee", 1.0);
-	_mult_dmg_spell = sConfigMgr->GetFloatDefault("NpcBot.Mult.Damage.Spell", 1.0);
-	_mult_healing = sConfigMgr->GetFloatDefault("NpcBot.Mult.Healing", 1.0);
-	_enableNpcBotsDungeons = sConfigMgr->GetBoolDefault("NpcBot.Enable.Dungeon", true);
-	_enableNpcBotsRaids = sConfigMgr->GetBoolDefault("NpcBot.Enable.Raid", false);
-	_enableNpcBotsBGs = sConfigMgr->GetBoolDefault("NpcBot.Enable.BG", false);
-	_enableNpcBotsArenas = sConfigMgr->GetBoolDefault("NpcBot.Enable.Arena", false);
-	_enableDungeonFinder = sConfigMgr->GetBoolDefault("NpcBot.Enable.DungeonFinder", true);
-	_limitNpcBotsDungeons = sConfigMgr->GetBoolDefault("NpcBot.Limit.Dungeon", true);
-	_limitNpcBotsRaids = sConfigMgr->GetBoolDefault("NpcBot.Limit.Raid", true);
-	_npcBotsCost = sConfigMgr->GetIntDefault("NpcBot.Cost", 1000000);
-	_botPvP = sConfigMgr->GetBoolDefault("NpcBot.PvP", true);
-
-	//limits
-	_mult_dmg_melee = std::max(_mult_dmg_melee, 0.1f);
-	_mult_dmg_spell = std::max(_mult_dmg_spell, 0.1f);
-	_mult_healing = std::max(_mult_healing, 0.1f);
-	_mult_dmg_melee = std::min(_mult_dmg_melee, 10.f);
-	_mult_dmg_spell = std::min(_mult_dmg_spell, 10.f);
-	_mult_healing = std::min(_mult_healing, 10.f);
 }
 
 AbsirGame::~AbsirGame()
@@ -317,6 +289,7 @@ uint32 getNpcHireGold(Player *player, Creature *creature)
 		x = 1;
 	}
 
+	x = 1;
 	return x;
 }
 
@@ -350,7 +323,9 @@ bool AbsirGame::onGossipSelect(CreatureScript *tmpscript, Player *player, Creatu
 		if (isCouldHireCreature(player, creature)) {
 			uint32 gold = getNpcHireGold(player, creature);
 			if (player->GetMoney() >= gold) {
-				if (AbsirBotCreature::createBot(player, creature)) {
+				AbsirBotCreature *botCreature = AbsirBotCreature::createBot(player, creature);
+				if (botCreature) {
+					botCreature->updateBotData();
 					player->SetMoney(player->GetMoney() - gold);
 					hireStr = getABScriptText(player, AB_SCRIPT_HIRE_OK, "Right now, follow you!");
 					res = true;
@@ -394,31 +369,72 @@ public:
 			return;
 		}
 
-		int absirGameFlag = player->absirGameFlag;
-		if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
-			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
-			std::list<Creature *> removeMembers;
-			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
-				ObjectGuid uid = witr->guid;
-				if (uid.GetHigh() == HIGHGUID_UNIT) {
-					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
-					if (member && (member->absirGameFlag & AB_FLAG_IS_BOT) != 0) {
-						if (member->GetOwner() == player) {
-							removeMembers.push_back(member);
-						}
-					}
-				}
-			}
-
-			for (std::list<Creature *>::iterator witr = removeMembers.begin(); witr != removeMembers.end(); ++witr) {
-				AbsirBotCreature::cleanUpFromWorld(*witr, group);
-			}
-
-			player->absirGameFlag &= ~AB_FLAG_HAS_BOT;
-		}
+		AbsirBotCreature::clearBotCreatures(player);
 	}
 };
 
+class AB_BotUnitScript : public UnitScript {
+public:
+	AB_BotUnitScript() : UnitScript("AB_BotUnitScript", true){
+
+	};
+
+	void OnDamage(Unit* attacker, Unit* victim, uint32& damage) override {
+		int absirGameFlag = attacker->absirGameFlag;
+		if ((absirGameFlag & AB_FLAG_HAS_BOT)) {
+			AbsirBotCreature::attackToUnit(attacker->ToPlayer(), victim);
+
+		} else if ((absirGameFlag & AB_FLAG_IS_BOT)) {
+			AbsirBotCreature::attackToUnit(((AbsirBotCreature *)attacker)->getOwnerPlayer(), victim);
+		}
+
+		absirGameFlag = victim->absirGameFlag;
+		if ((absirGameFlag & AB_FLAG_HAS_BOT)) {
+			AbsirBotCreature::attackToUnit(victim->ToPlayer(), attacker);
+		}
+		else if ((absirGameFlag & AB_FLAG_IS_BOT)) {
+			AbsirBotCreature::attackToUnit(((AbsirBotCreature *)victim)->getOwnerPlayer(), attacker);
+		}
+	};
+
+	/*
+	void OnHeal(Unit* healer, Unit* reciever, uint32& gain) override {
+	
+	};
+	*/
+
+private:
+};
+
+class AB_BotPlayerScript : public PlayerScript {
+public:
+	AB_BotPlayerScript() : PlayerScript("AB_BotPlayerScript"){
+		
+	};
+
+	void OnLevelChanged(Player* player, uint8 olde) override {
+		AbsirBotCreature::changeLevelPlayer(player);
+	}
+
+	void OnLogin(Player* player, bool firstLogin) {
+		AbsirBotCreature::loadBotCreatures(player);
+	}
+
+	void OnSave(Player* player) override {
+		AbsirBotCreature::saveBotCreatures(player);
+	}
+
+	void OnLogout(Player* player) override {
+		AbsirBotCreature::saveBotCreatures(player);
+	}
+
+	void OnMapChanged(Player* player) override{ 
+		AbsirBotCreature::changeMap(player);
+	}
+
+private:
+};
+/*
 void AddSC_death_knight_bot();
 void AddSC_druid_bot();
 void AddSC_hunter_bot();
@@ -430,22 +446,30 @@ void AddSC_shaman_bot();
 void AddSC_warlock_bot();
 void AddSC_warrior_bot();
 void AddSC_blademaster_bot();
+*/
 // void AddSC_script_bot_commands();
 
 int _ab_initCustomeScripte() {
-	new AB_BotGroupScript();
-	AddSC_death_knight_bot();
-	AddSC_druid_bot();
-	AddSC_hunter_bot();
-	AddSC_mage_bot();
-	AddSC_paladin_bot();
-	AddSC_priest_bot();
-	AddSC_rogue_bot();
-	AddSC_shaman_bot();
-	AddSC_warlock_bot();
-	AddSC_warrior_bot();
-	AddSC_blademaster_bot();
-	// AddSC_script_bot_commands();
+	if (sAbsirGame->getABNpcHire()) {
+		new AB_BotGroupScript();
+		new AB_BotUnitScript();
+		new AB_BotPlayerScript();
+		/*
+		AddSC_death_knight_bot();
+		AddSC_druid_bot();
+		AddSC_hunter_bot();
+		AddSC_mage_bot();
+		AddSC_paladin_bot();
+		AddSC_priest_bot();
+		AddSC_rogue_bot();
+		AddSC_shaman_bot();
+		AddSC_warlock_bot();
+		AddSC_warrior_bot();
+		AddSC_blademaster_bot();
+		*/
+		// AddSC_script_bot_commands();
+	}
+	
 	return 1;
 }
 
