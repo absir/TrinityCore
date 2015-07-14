@@ -246,7 +246,7 @@ void AbsirBotCreature::changeMap(Player *player) {
 	}
 }
 
-AbsirBotCreature::AbsirBotCreature() : Creature(true){
+AbsirBotCreature::AbsirBotCreature(Player* owner) : Minion(NULL, owner, true){
 }
 
 AbsirBotCreature::~AbsirBotCreature() {
@@ -257,7 +257,7 @@ AbsirBotCreature::~AbsirBotCreature() {
 
 AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint32 phaseMask, uint32 entry, float x, float y, float z, float ang, CreatureData const* data, uint32 vehId)
 {
-	AbsirBotCreature *botCreature = new AbsirBotCreature();
+	AbsirBotCreature *botCreature = new AbsirBotCreature(player);
 	Creature *creature = botCreature;
 	if (creature->Create(sObjectMgr->GenerateLowGuid(HIGHGUID_UNIT), map, player->GetPhaseMaskForSpawn(), entry, x, y, z, ang, data, vehId)) {
 		Group *group = player->GetGroup();
@@ -296,6 +296,14 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 	return NULL;
 }
 
+float randFollowBotAngel(Player *player) {
+	Group *group = player->GetGroup();
+	int count = group ? group->GetMembersCount() : 0;
+	float pi8 = M_PI * 2 / 5 * (0.5f + (count % 4) + (((int)(count / 4)) / 10.0f));
+	//TC_LOG_INFO("server.worldserver", "randFollowBotAngel %f", pi8);
+	return pi8;
+}
+
 Player *AbsirBotCreature::getBotPlayer()
 {
 	if (m_botPlayer == NULL) {
@@ -310,10 +318,19 @@ Player *AbsirBotCreature::getBotPlayer()
 		// Create Bot AI
 		// m_botAi = createBotAI(this);
 		SetUInt32Value(UNIT_NPC_FLAGS, m_owerPlayer->GetInt32Value(UNIT_NPC_FLAGS));
+		SetUInt32Value(UNIT_FIELD_FLAGS, m_owerPlayer->GetInt32Value(UNIT_FIELD_FLAGS));
+		SetUInt32Value(UNIT_FIELD_FLAGS_2, m_owerPlayer->GetInt32Value(UNIT_FIELD_FLAGS_2));
+		SetUInt32Value(UNIT_DYNAMIC_FLAGS, m_owerPlayer->GetInt32Value(UNIT_DYNAMIC_FLAGS));
+		SetPhaseMask(m_owerPlayer->GetPhaseMaskForSpawn(), true);
+		SetTempSummonType(TEMPSUMMON_MANUAL_DESPAWN);
+		
+		/*
 		AddUnitTypeMask(UNIT_MASK_SUMMON);
 		SetUInt32Value(UNIT_FIELD_SUMMONEDBY, m_owerPlayer->GetGUID());
 		SetUInt32Value(UNIT_FIELD_CREATEDBY, m_owerPlayer->GetGUID());
+		*/
 		GetMotionMaster()->Clear();
+		SetFollowAngle(m_botData.angle == 0 ? randFollowBotAngel(m_owerPlayer) : m_botData.angle);
 	}
 
 	return m_botPlayer;
@@ -324,25 +341,21 @@ void AbsirBotCreature::updateOwnerData()
 	SetLevel(m_owerPlayer->getLevel());
 }
 
-float randFollowBotAngel(Player *player) {
-	Group *group = player->GetGroup();
-	int count = group ? group->GetMembersCount() : 0;
-	float pi8 = M_2_PI / 8;
-	return pi8 * (count % 5 + 1) + pi8 / 8 * (int)(count / 5);
-}
-
 void AbsirBotCreature::updateBotData()
 {
 	if (m_botData.follow && m_botData.distance > 0) {
-		GetMotionMaster()->MoveFollow(m_owerPlayer, m_botData.distance, m_botData.angle == 0 ? randFollowBotAngel(m_owerPlayer) : 0);
+		GetMotionMaster()->MoveFollow(m_owerPlayer, m_botData.distance, GetFollowAngle());
 	}
 	else {
 		StopMoving();
 	}
 }
 
+void AbsirBotCreature::UnSummon(uint32 msTime)
+{
+}
+
 void AbsirBotCreature::Update(uint32 time)
 {
-	Creature::Update(time);
-
+	Minion::Update(time);
 }

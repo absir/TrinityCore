@@ -2,6 +2,7 @@
 #define AB_BOT_CREATURE
 
 #include "AbsirGame.h"
+#include "Pet.h"
 
 class AbsirBotCreature;
 class AbsirBotSession;
@@ -83,7 +84,7 @@ CharacterDatabase.Execute(stmt);
 }
 //end npcbot
 */
-class AbsirBotCreature : public Creature
+class AbsirBotCreature : public Minion
 {
 public:
 	static AbsirBotCreature *createBot(Player *player, Unit *unit) {
@@ -99,7 +100,7 @@ public:
 	static void attackToUnit(Player *player, Unit *unit);
 	static void changeMap(Player *player);
 
-	AbsirBotCreature();
+	AbsirBotCreature(Player* owner);
 	~AbsirBotCreature();
 	Player *getOwnerPlayer() { return m_owerPlayer; };
 	Player *getBotPlayer();
@@ -107,6 +108,7 @@ public:
 
 	void updateOwnerData();
 	void updateBotData();
+	void UnSummon(uint32 msTime = 0) override;
 	void Update(uint32 time) override;
 
 private:
