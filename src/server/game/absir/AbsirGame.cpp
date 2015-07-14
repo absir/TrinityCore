@@ -298,8 +298,14 @@ uint32 getNpcHireGold(Player *player, Creature *creature)
 #define AB_GOSSIP_ACTION_HIRE 0xABAB2001
 
 bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creature *creature) {
+	return onGossipHello(tmpscript, player, creature, true);
+}
+
+bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creature *creature, bool finish)
+{
 	bool res = false;
-	if (isCouldHireCreature(player, creature)) {
+	bool hire = isCouldHireCreature(player, creature);
+	if (hire) {
 		res = true;
 		std::string hireStr = getABScriptText(player, AB_SCRIPT_HIRE_ME, "Hire Me");
 		player->ADD_GOSSIP_ITEM_EXTENDED(GOSSIP_ICON_CHAT, getABScriptText(player, AB_SCRIPT_HIRE_ME, "Hire Me"), AB_GOSSIP_SENDER_HIRE, AB_GOSSIP_ACTION_HIRE, getABScriptText(player, AB_SCRIPT_COST, "Cost"), getNpcHireGold(player, creature), false);
@@ -309,11 +315,18 @@ bool AbsirGame::onGossipHello(CreatureScript *tmpscript, Player *player, Creatur
 		res = true;
 	}
 
-	if (tmpscript != NULL && !player->PlayerTalkClass->GetGossipMenu().Empty()) {
-		player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());
+	if (hire && (tmpscript == NULL || finish)) {
+		onGossipHelloFinish(player, creature);
 	}
 
 	return res;
+}
+
+void AbsirGame::onGossipHelloFinish(Player *player, Creature *creature)
+{
+	if (!player->PlayerTalkClass->GetGossipMenu().Empty()) {
+		player->SEND_GOSSIP_MENU(player->GetGossipTextId(creature), creature->GetGUID());
+	}
 }
 
 bool AbsirGame::onGossipSelect(CreatureScript *tmpscript, Player *player, Creature *creature, uint32 sender, uint32 action) {

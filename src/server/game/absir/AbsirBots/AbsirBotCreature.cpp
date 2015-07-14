@@ -265,6 +265,7 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 			group = new Group();
 			if (group->Create(player)) {
 				sGroupMgr->AddGroup(group);
+				group->SetLootMethod(FREE_FOR_ALL);
 			}
 			else {
 				delete group;
@@ -284,6 +285,10 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 				creature->setActive(true);
 				return botCreature;
 			}
+		}
+
+		if (group->GetMembersCount() <= 1) {
+			group->Disband();
 		}
 	}
 

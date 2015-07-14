@@ -93,6 +93,10 @@ public:
 	*/
 	bool onGossipHello(CreatureScript *tmpscript, Player *player, Creature *creature);
 
+	bool onGossipHello(CreatureScript *tmpscript, Player *player, Creature *creature, bool finish);
+
+	void onGossipHelloFinish(Player *player, Creature *creature);
+
 	/*
 	MiscHandler.cpp
 	if (unit)

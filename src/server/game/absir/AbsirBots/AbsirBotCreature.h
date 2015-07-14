@@ -83,6 +83,11 @@ CharacterDatabase.Execute(stmt);
 //npcbot
 }
 //end npcbot
+
+@6
+if (m_memberMgr.getSize() < ((isLFGGroup() || isBGGroup()) ? 1u : 2u))
+if (guid.GetHigh() != HIGHGUID_UNIT || m_memberSlots.size <= 1)
+Disband();
 */
 class AbsirBotCreature : public Minion
 {

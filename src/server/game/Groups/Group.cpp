@@ -625,7 +625,8 @@ bool Group::RemoveMember(ObjectGuid guid, const RemoveMethod& method /*= GROUP_R
         }
 
         if (m_memberMgr.getSize() < ((isLFGGroup() || isBGGroup()) ? 1u : 2u))
-            Disband();
+			if (guid.GetHigh() != HIGHGUID_UNIT || m_memberSlots.size() <= 1)
+				Disband();
 
         return true;
     }
