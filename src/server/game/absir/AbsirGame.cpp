@@ -205,22 +205,12 @@ void AbsirGame::setHurterPetStats(Guardian *guardian)
 
 	Pet *pet = dynamic_cast<Pet *>(guardian);
 	if (pet != NULL && pet->getPetType() == HUNTER_PET) {
-		const CreatureTemplate *cInfo = pet->GetCreatureTemplate();
-		pet->SetAttackTime(BASE_ATTACK, cInfo->BaseAttackTime);
-		pet->SetAttackTime(OFF_ATTACK, cInfo->BaseAttackTime);
-		pet->SetAttackTime(RANGED_ATTACK, cInfo->RangeAttackTime);
+		const CreatureTemplate *cinfo = pet->GetCreatureTemplate();
+		pet->SetAttackTime(BASE_ATTACK, cinfo->BaseAttackTime);
+		pet->SetAttackTime(OFF_ATTACK, cinfo->BaseAttackTime);
+		pet->SetAttackTime(RANGED_ATTACK, cinfo->RangeAttackTime);
 
-		CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(pet->getLevel(), cInfo->unit_class);
-		float armor = (float)stats->GenerateArmor(cInfo); /// @todo Why is this treated as uint32 when it's a float?
-		pet->SetModifierValue(UNIT_MOD_ARMOR, BASE_VALUE, armor);
-		pet->SetModifierValue(UNIT_MOD_RESISTANCE_HOLY, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_HOLY]));
-		pet->SetModifierValue(UNIT_MOD_RESISTANCE_FIRE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_FIRE]));
-		pet->SetModifierValue(UNIT_MOD_RESISTANCE_NATURE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_NATURE]));
-		pet->SetModifierValue(UNIT_MOD_RESISTANCE_FROST, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_FROST]));
-		pet->SetModifierValue(UNIT_MOD_RESISTANCE_SHADOW, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_SHADOW]));
-		pet->SetModifierValue(UNIT_MOD_RESISTANCE_ARCANE, BASE_VALUE, float(cInfo->resistance[SPELL_SCHOOL_ARCANE]));
-
-		pet->SetCanModifyStats(true);
+		pet->SetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE, float(cinfo->ModDamage));
 		pet->UpdateAllStats();
 	}
 }
@@ -398,7 +388,15 @@ public:
 			AbsirBotCreature::attackToUnit(attacker->ToPlayer(), victim);
 
 		} else if ((absirGameFlag & AB_FLAG_IS_BOT)) {
-			AbsirBotCreature::attackToUnit(((AbsirBotCreature *)attacker)->getOwnerPlayer(), victim);
+			Player *ownerPlayer = ((AbsirBotCreature *)attacker)->getOwnerPlayer();
+			AbsirBotCreature::attackToUnit(ownerPlayer, victim);
+			Creature *victimCreature = victim->ToCreature();
+			if (victimCreature) {
+				if (!victimCreature->GetLootRecipient()) {
+					victimCreature->SetLootRecipient(ownerPlayer);
+					victimCreature->LowerPlayerDamageReq(victimCreature->GetMaxHealth());
+				}
+			}
 		}
 
 		absirGameFlag = victim->absirGameFlag;

@@ -54,13 +54,12 @@ public:
 
 	/*
 	Pet.cpp
-	bool Guardian::InitStatsForLevel(uint8 petlevel)
-	SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, float(petlevel + (petlevel / 4)));
-	//damage is increased afterwards as strength and pet scaling modify attack power
+	 }
 
-	sAbsirGame->setHurterPetStats(this);
+	if (petType == HUNTER_PET)
+		sAbsirGame->setHurterPetStats(this);
 
-	break;
+    UpdateAllStats();
 	}
 	*/
 

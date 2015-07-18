@@ -304,8 +304,8 @@ AbsirBotCreature *AbsirBotCreature::createBotData(Player *player, Map* map, uint
 float randFollowBotAngel(Player *player) {
 	Group *group = player->GetGroup();
 	int count = group ? group->GetMembersCount() : 0;
-	float pi8 = M_PI * 2 / 5 * (0.5f + (count % 4) + (((int)(count / 4)) / 10.0f));
-	//TC_LOG_INFO("server.worldserver", "randFollowBotAngel %f", pi8);
+	int pos = count % 4;
+	float pi8 = M_PI / 2.0f * (pos + 0.5f + ((count - pos) / 40.f));
 	return pi8;
 }
 
@@ -336,6 +336,9 @@ Player *AbsirBotCreature::getBotPlayer()
 		*/
 		GetMotionMaster()->Clear();
 		SetFollowAngle(m_botData.angle == 0 ? randFollowBotAngel(m_owerPlayer) : m_botData.angle);
+
+		ClearUnitState(UNIT_STATE_EVADE);
+		setRegeneratingHealth(true);
 	}
 
 	return m_botPlayer;
@@ -343,7 +346,55 @@ Player *AbsirBotCreature::getBotPlayer()
 
 void AbsirBotCreature::updateOwnerData()
 {
-	SetLevel(m_owerPlayer->getLevel());
+	CreatureTemplate const* cInfo = GetCreatureTemplate();
+	uint32 rank = IsPet() ? 0 : cInfo->rank;
+
+	uint32 level = m_owerPlayer->getLevel();
+	SetLevel(level);
+	
+	CreatureBaseStats const* stats = sObjectMgr->GetCreatureBaseStats(level, cInfo->unit_class);
+	
+	// health
+	float healthmod = _GetHealthMod(rank);
+
+	uint32 basehp = stats->GenerateHealth(cInfo);
+	uint32 health = uint32(basehp * healthmod);
+
+	SetCreateHealth(health);
+	SetMaxHealth(health);
+	SetHealth(health);
+	ResetPlayerDamageReq();
+
+	// mana
+	uint32 mana = stats->GenerateMana(cInfo);
+
+	SetCreateMana(mana);
+	SetMaxPower(POWER_MANA, mana); // MAX Mana
+	SetPower(POWER_MANA, mana);
+
+	/// @todo set UNIT_FIELD_POWER*, for some creature class case (energy, etc)
+
+	SetModifierValue(UNIT_MOD_HEALTH, BASE_VALUE, (float)health);
+	SetModifierValue(UNIT_MOD_MANA, BASE_VALUE, (float)mana);
+
+	// damage
+
+	float basedamage = stats->GenerateBaseDamage(cInfo);
+
+	float weaponBaseMinDamage = basedamage;
+	float weaponBaseMaxDamage = basedamage * 1.5f;
+
+	SetBaseWeaponDamage(BASE_ATTACK, MINDAMAGE, weaponBaseMinDamage);
+	SetBaseWeaponDamage(BASE_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
+
+	SetBaseWeaponDamage(OFF_ATTACK, MINDAMAGE, weaponBaseMinDamage);
+	SetBaseWeaponDamage(OFF_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
+
+	SetBaseWeaponDamage(RANGED_ATTACK, MINDAMAGE, weaponBaseMinDamage);
+	SetBaseWeaponDamage(RANGED_ATTACK, MAXDAMAGE, weaponBaseMaxDamage);
+
+	SetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE, stats->AttackPower);
+	SetModifierValue(UNIT_MOD_ATTACK_POWER_RANGED, BASE_VALUE, stats->RangedAttackPower);
 }
 
 void AbsirBotCreature::updateBotData()
@@ -362,5 +413,9 @@ void AbsirBotCreature::UnSummon(uint32 msTime)
 
 void AbsirBotCreature::Update(uint32 time)
 {
+	SetStat(STAT_SPIRIT, m_owerPlayer->GetStat(STAT_SPIRIT));
 	Minion::Update(time);
+	if (GetMap() == m_owerPlayer->GetMap() && GetDistance(m_owerPlayer->GetPosition()) > 30.0f) {
+		Relocate(m_owerPlayer->GetPosition());
+	}
 }
