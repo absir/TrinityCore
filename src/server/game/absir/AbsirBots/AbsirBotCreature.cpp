@@ -413,6 +413,10 @@ void AbsirBotCreature::UnSummon(uint32 msTime)
 
 void AbsirBotCreature::Update(uint32 time)
 {
+	if (isDead() && !m_owerPlayer->IsInCombat()) {
+		setDeathState(ALIVE);
+	}
+
 	SetStat(STAT_SPIRIT, m_owerPlayer->GetStat(STAT_SPIRIT));
 	Minion::Update(time);
 	if (GetMap() == m_owerPlayer->GetMap() && GetDistance(m_owerPlayer->GetPosition()) > 30.0f) {

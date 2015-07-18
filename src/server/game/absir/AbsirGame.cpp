@@ -394,7 +394,7 @@ public:
 			if (victimCreature) {
 				if (!victimCreature->GetLootRecipient()) {
 					victimCreature->SetLootRecipient(ownerPlayer);
-					victimCreature->LowerPlayerDamageReq(victimCreature->GetMaxHealth());
+					victimCreature->ResetPlayerDamageReq();
 				}
 			}
 		}
