@@ -390,13 +390,15 @@ public:
 		} else if ((absirGameFlag & AB_FLAG_IS_BOT)) {
 			Player *ownerPlayer = ((AbsirBotCreature *)attacker)->getOwnerPlayer();
 			AbsirBotCreature::attackToUnit(ownerPlayer, victim);
+			/*
 			Creature *victimCreature = victim->ToCreature();
 			if (victimCreature) {
 				if (!victimCreature->GetLootRecipient()) {
 					victimCreature->SetLootRecipient(ownerPlayer);
-					victimCreature->ResetPlayerDamageReq();
+					victimCreature->LowerPlayerDamageReq(victimCreature->GetMaxHealth() + damage + 100);
 				}
 			}
+			*/
 		}
 
 		absirGameFlag = victim->absirGameFlag;
@@ -440,6 +442,10 @@ public:
 	}
 
 	void OnMapChanged(Player* player) override{ 
+		AbsirBotCreature::changeMap(player);
+	}
+
+	void OnUpdateZone(Player* player, uint32 newZone, uint32 newArea) override{
 		AbsirBotCreature::changeMap(player);
 	}
 

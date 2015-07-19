@@ -114,6 +114,12 @@ void AbsirBotCreature::loadBotCreatures(Player *player)
 				float y = fields[4].GetFloat();
 				float z = fields[5].GetFloat();
 				float ang = fields[6].GetFloat();
+				if (player->GetDistance(Position(x, y, z)) > PET_FOLLOW_DIST) {
+					x = player->GetPositionX();
+					y = player->GetPositionY();
+					z = player->GetPositionZ();
+				}
+
 				AbsirBotCreature *creature = AbsirBotCreature::createBotData(player, player->GetMap(), phaseMask, entry, x, y, z, ang);
 				if (creature) {
 					// Decode Base64
@@ -155,7 +161,6 @@ void AbsirBotCreature::clearBotCreatures(Player *player) {
 			std::list<Creature *> removeMembers;
 			uint32 guid = player->GetGUID();
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
-			int8 sequ = 0;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				ObjectGuid uid = witr->guid;
 				if (uid.GetHigh() == HIGHGUID_UNIT) {
@@ -182,7 +187,6 @@ void AbsirBotCreature::changeLevelPlayer(Player *player) {
 		if (group != NULL) {
 			uint32 guid = player->GetGUID();
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
-			int8 sequ = 0;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				ObjectGuid uid = witr->guid;
 				if (uid.GetHigh() == HIGHGUID_UNIT) {
@@ -203,7 +207,6 @@ void AbsirBotCreature::attackToUnit(Player *player, Unit *unit)
 		if (group != NULL) {
 			uint32 guid = player->GetGUID();
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
-			int8 sequ = 0;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				ObjectGuid uid = witr->guid;
 				if (uid.GetHigh() == HIGHGUID_UNIT) {
@@ -220,6 +223,7 @@ void AbsirBotCreature::attackToUnit(Player *player, Unit *unit)
 }
 
 void AbsirBotCreature::changeMap(Player *player) {
+	TC_LOG_INFO("server.worldserver", "player => %f,%f,%f", player->GetPositionX(), player->GetPositionY(), player->GetPositionY());
 	if ((player->absirGameFlag & AB_FLAG_HAS_BOT) != 0) {
 		Group *group = player->GetGroup();
 		if (group != NULL) {
@@ -227,18 +231,28 @@ void AbsirBotCreature::changeMap(Player *player) {
 			Position position = player->GetPosition();
 			uint32 guid = player->GetGUID();
 			const std::list<Group::MemberSlot> m_memberSlots = group->GetMemberSlots();
-			int8 sequ = 0;
 			for (std::list<Group::MemberSlot>::const_iterator witr = m_memberSlots.begin(); witr != m_memberSlots.end(); ++witr) {
 				ObjectGuid uid = witr->guid;
 				if (uid.GetHigh() == HIGHGUID_UNIT) {
 					Creature *member = ObjectAccessor::GetObjectInWorld(uid, (Creature*)NULL);
 					if (member && member->GetOwnerGUID() == guid) {
-						if (member->GetMap() != map) {
-							member->GetMap()->RemoveFromMap(member, false);
-							member->SetMap(map);
-							member->Relocate(position);
-							map->AddToMap(member);
+						if (!member->FindMap() || (member->FindMap() == map && member->GetDistance(position) <= 30.f)) {
+							return;
 						}
+
+						TC_LOG_INFO("server.worldserver", "%s changeMap", member->GetName().c_str());
+						TC_LOG_INFO("server.worldserver", "%f,%f,%f", member->GetPositionX(), member->GetPositionY(), member->GetPositionY());
+						TC_LOG_INFO("server.worldserver", "distance => %f", member->GetDistance(player->GetPosition()));
+						AbsirBotCreature *botCreature = (AbsirBotCreature *)member;
+						member->setActive(false);
+						member->GetMap()->RemoveFromMap(member, false);
+						member->SetMap(map);
+						botCreature->teleportToPosition(position);
+						map->AddToMap(member);
+						member->setActive(true);
+						member->setDeathState(ALIVE);
+						botCreature->updateBotData();
+						TC_LOG_INFO("server.worldserver", "new position = %f,%f,%f", member->GetPositionX(), member->GetPositionY(), member->GetPositionY());
 					}
 				}
 			}
@@ -313,6 +327,7 @@ Player *AbsirBotCreature::getBotPlayer()
 {
 	if (m_botPlayer == NULL) {
 		// Set Bot Player
+		m_ControlledByPlayer = true;
 		m_botPlayer = (Player *)this;
 
 		// Set Creature Owner Flag
@@ -324,11 +339,11 @@ Player *AbsirBotCreature::getBotPlayer()
 		// m_botAi = createBotAI(this);
 		SetUInt32Value(UNIT_NPC_FLAGS, m_owerPlayer->GetInt32Value(UNIT_NPC_FLAGS));
 		SetUInt32Value(UNIT_FIELD_FLAGS, m_owerPlayer->GetInt32Value(UNIT_FIELD_FLAGS));
-		SetUInt32Value(UNIT_FIELD_FLAGS_2, m_owerPlayer->GetInt32Value(UNIT_FIELD_FLAGS_2));
+		//SetUInt32Value(UNIT_FIELD_FLAGS_2, m_owerPlayer->GetInt32Value(UNIT_FIELD_FLAGS_2));
 		SetUInt32Value(UNIT_DYNAMIC_FLAGS, m_owerPlayer->GetInt32Value(UNIT_DYNAMIC_FLAGS));
 		SetPhaseMask(m_owerPlayer->GetPhaseMaskForSpawn(), true);
 		SetTempSummonType(TEMPSUMMON_MANUAL_DESPAWN);
-		
+
 		/*
 		AddUnitTypeMask(UNIT_MASK_SUMMON);
 		SetUInt32Value(UNIT_FIELD_SUMMONEDBY, m_owerPlayer->GetGUID());
@@ -407,6 +422,13 @@ void AbsirBotCreature::updateBotData()
 	}
 }
 
+void AbsirBotCreature::teleportToPosition(Position &position)
+{
+	CombatStop();
+	Relocate(position);
+	GetMap()->CreatureRelocation(this, position.GetPositionX(), position.GetPositionY(), position.GetPositionZ(), position.GetOrientation(), true);
+}
+
 void AbsirBotCreature::UnSummon(uint32 msTime)
 {
 }
@@ -420,6 +442,6 @@ void AbsirBotCreature::Update(uint32 time)
 	SetStat(STAT_SPIRIT, m_owerPlayer->GetStat(STAT_SPIRIT));
 	Minion::Update(time);
 	if (GetMap() == m_owerPlayer->GetMap() && GetDistance(m_owerPlayer->GetPosition()) > 30.0f) {
-		Relocate(m_owerPlayer->GetPosition());
+		teleportToPosition(m_owerPlayer->GetPosition());
 	}
 }

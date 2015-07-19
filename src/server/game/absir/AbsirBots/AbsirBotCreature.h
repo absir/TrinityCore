@@ -113,6 +113,7 @@ public:
 
 	void updateOwnerData();
 	void updateBotData();
+	void teleportToPosition(Position &position);
 	void UnSummon(uint32 msTime = 0) override;
 	void Update(uint32 time) override;
 
